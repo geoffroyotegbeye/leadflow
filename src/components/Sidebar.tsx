@@ -21,7 +21,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
 
   return (
-    <div className="w-64 h-screen bg-white/10 dark:bg-gray-900/10 backdrop-blur-xl border-r border-white/10 dark:border-gray-800/30 fixed left-0 top-0">
+    <div className="w-64 h-screen bg-white/10 dark:bg-gray-900/10 backdrop-blur-xl border-r border-white/10 dark:border-gray-800/30 fixed left-0 top-0 shadow-xl">
       {/* Logo */}
       <div className="p-6">
         <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -9,7 +9,6 @@ import ReactFlow, {
   Edge,
   Connection,
   MarkerType,
-  NodeMouseHandler,
   addEdge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -40,7 +39,6 @@ import CustomNode from '../components/flowchart/CustomNode';
 import NodeEditor from '../components/flowchart/NodeEditor';
 import ContextMenu from '../components/flowchart/ContextMenu';
 
-// Map des icônes pour les types de nœuds
 const iconMap = {
   PlayIcon,
   ChatBubbleLeftRightIcon,
@@ -89,7 +87,6 @@ const ChatbotEditor: React.FC = () => {
   const [contextMenu, setContextMenu] = React.useState<ContextMenuInfo | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
-  // Handle connections between nodes
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) =>
@@ -107,7 +104,6 @@ const ChatbotEditor: React.FC = () => {
     [setEdges]
   );
 
-  // Handle node selection
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       setSelectedNode(node);
@@ -117,7 +113,6 @@ const ChatbotEditor: React.FC = () => {
     []
   );
 
-  // Handle node context menu
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
@@ -131,35 +126,27 @@ const ChatbotEditor: React.FC = () => {
     []
   );
 
-  // Handle background click to close context menu
   const onPaneClick = useCallback(() => {
     setContextMenu(null);
   }, []);
 
-  // Delete selected node
   const deleteNode = useCallback(() => {
     if (selectedNode) {
-      // Ne pas permettre la suppression du nœud de départ
       if (selectedNode.id === 'start') {
         return;
       }
       
-      // Supprimer le nœud
       setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
-      
-      // Supprimer les connexions associées
       setEdges((eds) => eds.filter(
         (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
       ));
       
-      // Fermer l'éditeur et le menu contextuel
       setIsEditorOpen(false);
       setContextMenu(null);
       setSelectedNode(null);
     }
   }, [selectedNode, setNodes, setEdges]);
 
-  // Add new node to the canvas
   const addNode = useCallback((type: NodeType) => {
     const newNode: Node<NodeData> = {
       id: `${type}-${Date.now()}`,
@@ -176,7 +163,6 @@ const ChatbotEditor: React.FC = () => {
     setIsEditorOpen(true);
   }, [setNodes]);
 
-  // Update node data
   const handleNodeUpdate = useCallback((data: NodeData) => {
     if (selectedNode) {
       setNodes((nds) =>
@@ -189,7 +175,6 @@ const ChatbotEditor: React.FC = () => {
 
   return (
     <div className="flow-editor">
-      {/* Sidebar Toggle Button */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         className="flow-sidebar-toggle"
@@ -201,7 +186,6 @@ const ChatbotEditor: React.FC = () => {
         )}
       </button>
 
-      {/* Node Types Sidebar */}
       <div className={`flow-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
         <h2 className="flow-sidebar-title">
           Éléments
@@ -233,8 +217,7 @@ const ChatbotEditor: React.FC = () => {
         </div>
       </div>
 
-      {/* Flow Editor */}
-      <div className="flow-editor-container">
+      <div className={`flow-editor-container ${!isSidebarOpen ? 'sidebar-collapsed' : ''}`}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -258,7 +241,6 @@ const ChatbotEditor: React.FC = () => {
           <MiniMap />
         </ReactFlow>
 
-        {/* Add Node Button */}
         <button
           onClick={() => addNode(NodeType.MESSAGE)}
           className="flow-add-button"
@@ -266,7 +248,6 @@ const ChatbotEditor: React.FC = () => {
           <PlusIcon className="w-6 h-6" />
         </button>
 
-        {/* Context Menu */}
         {contextMenu && (
           <ContextMenu
             x={contextMenu.x}
@@ -280,7 +261,6 @@ const ChatbotEditor: React.FC = () => {
         )}
       </div>
 
-      {/* Node Editor */}
       <NodeEditor
         isOpen={isEditorOpen}
         onClose={() => {

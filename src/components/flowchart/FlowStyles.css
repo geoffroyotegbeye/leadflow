@@ -1,9 +1,9 @@
 .flow-editor {
-  @apply flex h-screen bg-gray-50 dark:bg-gray-900;
+  @apply h-[calc(100vh-7rem)] bg-gray-50 dark:bg-gray-900 overflow-hidden;
 }
 
 .flow-sidebar {
-  @apply fixed top-16 left-0 bottom-0 z-10 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out;
+  @apply fixed top-16 left-0 bottom-0 z-10 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out overflow-hidden;
 }
 
 .flow-sidebar.collapsed {
@@ -19,7 +19,7 @@
 }
 
 .flow-sidebar-items {
-  @apply p-4 grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(100vh-8rem)];
+  @apply p-4 grid grid-cols-2 gap-3 h-[calc(100vh-8rem)] overflow-y-auto;
 }
 
 .flow-sidebar-item {
@@ -31,7 +31,11 @@
 }
 
 .flow-editor-container {
-  @apply flex-1 ml-16;
+  @apply flex-1 h-full ml-64;
+}
+
+.flow-editor-container.sidebar-collapsed {
+  @apply ml-0;
 }
 
 .flow-add-button {
@@ -75,6 +79,14 @@
   height: 10px !important;
   border-radius: 50% !important;
   background-color: #94a3b8 !important;
+}
+
+.react-flow__handle-left {
+  left: -5px !important;
+}
+
+.react-flow__handle-right {
+  right: -5px !important;
 }
 
 .react-flow__handle-top {

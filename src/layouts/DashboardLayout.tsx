@@ -15,9 +15,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <Sidebar />
       
       {/* Main Content */}
-      <div className="pl-64">
+      <div className="pl-64 ">
         {/* Top Bar */}
-        <div className="h-16 flex items-center justify-end px-6 border-b border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl">
+        <div className="h-16 sticky top-0 z-50 flex items-center justify-end px-6 border-b border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl shadow">
           <button
             onClick={toggleDarkMode}
             className={`p-2 rounded-lg ${
