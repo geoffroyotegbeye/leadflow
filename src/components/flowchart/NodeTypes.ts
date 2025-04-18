@@ -1,11 +1,22 @@
-export type NodeData = {
-  label: string;
-  type: NodeType;
-  content?: string;
+export type ElementType = {
+  id: string;
+  type: 'text' | 'question' | 'api_call' | 'wait_input';
+  content: string;
+  displayMode: 'after' | 'simultaneous';
   options?: string[];
-  conditions?: Condition[];
-  actions?: Action[];
-  metadata?: Record<string, any>;
+  apiConfig?: {
+    url: string;
+    method: string;
+    headers?: Record<string, string>;
+    body?: any;
+  };
+};
+
+export type NodeData = {
+  id: string;
+  label: string;
+  elements: ElementType[];
+  position?: { x: number; y: number };
 };
 
 export enum NodeType {
@@ -27,17 +38,23 @@ export enum NodeType {
   NOTIFICATION = 'notification'
 }
 
-export type Condition = {
-  id: string;
-  type: 'equals' | 'contains' | 'regex' | 'greater' | 'less';
-  value: string;
-  target: string;
-};
-
-export type Action = {
-  id: string;
-  type: 'save_variable' | 'send_email' | 'webhook' | 'custom';
-  config: Record<string, any>;
+export const ELEMENT_TYPES = {
+  text: {
+    label: 'Message texte',
+    description: 'Envoyer un message texte à l\'utilisateur'
+  },
+  question: {
+    label: 'Question',
+    description: 'Poser une question avec des choix'
+  },
+  api_call: {
+    label: 'Appel API',
+    description: 'Appeler un service externe'
+  },
+  wait_input: {
+    label: 'Attente réponse',
+    description: 'Attendre une réponse de l\'utilisateur'
+  }
 };
 
 export const NODE_TYPES = {

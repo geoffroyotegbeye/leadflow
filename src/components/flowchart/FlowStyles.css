@@ -44,6 +44,13 @@
 
 .flow-node {
   @apply relative p-3 rounded-lg shadow-md bg-white dark:bg-gray-800 border-2;
+  transition: all 0.2s ease;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.flow-node:hover {
+  transform: translateY(-2px);
 }
 
 .flow-node.selected {
@@ -72,6 +79,28 @@
 
 .flow-handle {
   @apply w-3 h-3 bg-gray-400 dark:bg-gray-600;
+}
+
+.flow-node-element {
+  transition: background-color 0.2s ease;
+}
+
+.flow-node-element:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.flow-node-element-sequential::before {
+  content: '↓';
+  position: absolute;
+  left: -20px;
+  color: #9CA3AF;
+}
+
+.flow-node-element-simultaneous::before {
+  content: '⇉';
+  position: absolute;
+  left: -20px;
+  color: #9CA3AF;
 }
 
 .react-flow__handle {
