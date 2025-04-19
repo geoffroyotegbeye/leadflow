@@ -4,6 +4,115 @@ import AssistantService from '../../services/api';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import './ChatPreview.css';
+import { useAssistantStore } from '../../stores/assistantStore';
+
+// Composant pour l'entrée de texte inline dans la conversation
+interface InlineInputFieldProps {
+  message: ChatMessage;
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  currentNodeId: string | null;
+  setCurrentNodeId: React.Dispatch<React.SetStateAction<string | null>>;
+  flowData: { nodes: any[]; edges: any[] };
+  processNodeElements: (node: any) => void;
+}
+
+const InlineInputField: React.FC<InlineInputFieldProps> = ({ 
+  message, 
+  setMessages, 
+  currentNodeId, 
+  setCurrentNodeId, 
+  flowData, 
+  processNodeElements 
+}) => {
+  const inputType = message.elementData?.inputType || 'text';
+  const [inputValue, setInputValue] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  
+  // Validation simple
+  const validateInput = useCallback((value: string): boolean => {
+    if (inputType === 'email' && value && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+      setErrorMsg("Veuillez entrer un email valide.");
+      return false;
+    }
+    if (inputType === 'number' && value && isNaN(Number(value))) {
+      setErrorMsg("Veuillez entrer un nombre valide.");
+      return false;
+    }
+    setErrorMsg('');
+    return true;
+  }, [inputType]);
+  
+  const handleSubmitInput = useCallback(() => {
+    if (!inputValue.trim() || !validateInput(inputValue)) return;
+    
+    // Créer un message utilisateur avec la réponse
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      content: inputValue,
+      type: 'input',
+      sender: 'user',
+      timestamp: Date.now(),
+      visible: true
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Passer au nœud suivant
+    if (message.elementData && message.elementData.options && message.elementData.options[0]?.targetNodeId) {
+      const targetNodeId = message.elementData.options[0].targetNodeId;
+      const targetNode = flowData.nodes.find(n => n.id === targetNodeId);
+      if (targetNode) {
+        setCurrentNodeId(targetNode.id);
+        processNodeElements(targetNode);
+      }
+    } else {
+      // Sinon, suivre le flux normal
+      const nextEdge = flowData.edges.find(e => e.source === currentNodeId);
+      if (nextEdge) {
+        const nextNode = flowData.nodes.find(n => n.id === nextEdge.target);
+        if (nextNode) {
+          setCurrentNodeId(nextNode.id);
+          processNodeElements(nextNode);
+        }
+      }
+    }
+  }, [inputValue, validateInput, message.elementData, setMessages, flowData, currentNodeId, setCurrentNodeId, processNodeElements]);
+  
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    validateInput(e.target.value);
+  }, [validateInput]);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.2 }}
+      className="mt-3 flex flex-col gap-1"
+    >
+      <div className="w-full">
+        <div className="flex items-center">
+          <input
+            type={inputType}
+            value={inputValue}
+            onChange={handleChange}
+            placeholder={`Entrez votre ${inputType === 'email' ? 'email' : inputType === 'number' ? 'numéro' : 'réponse'}...`}
+            className="flex-1 rounded-l-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+            autoFocus
+          />
+          <button
+            onClick={handleSubmitInput}
+            className="p-2 rounded-r-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+            disabled={!inputValue.trim()}
+          >
+            <PaperAirplaneIcon className="h-5 w-5" />
+          </button>
+        </div>
+        {errorMsg && <span className="text-xs text-red-500 mt-1">{errorMsg}</span>}
+      </div>
+    </motion.div>
+  );
+};
 
 interface ChatMessage {
   id: string;
@@ -65,25 +174,38 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     scrollToBottom();
   }, [messages]);
 
-  // Charger le flowchart depuis l'API
+  // Utiliser le store Zustand pour accéder aux données du flowchart
+  const { nodes: storeNodes, edges: storeEdges, isLoading: storeLoading } = useAssistantStore();
+  
+  // Charger le flowchart depuis le store
   useEffect(() => {
     if (assistantId) {
-      setIsLoading(true);
-      
-      AssistantService.getById(assistantId)
-        .then(assistant => {
-          setFlowData({
-            nodes: assistant.nodes || [],
-            edges: assistant.edges || []
-          });
-          setIsLoading(false);
-        })
-        .catch(error => {
-          console.error('Erreur lors du chargement du flowchart:', error);
-          setIsLoading(false);
+      // Si les données sont déjà dans le store, les utiliser directement
+      if (storeNodes.length > 0 || storeEdges.length > 0) {
+        setFlowData({
+          nodes: storeNodes,
+          edges: storeEdges
         });
+        setIsLoading(false);
+      } else {
+        // Sinon, charger depuis l'API
+        setIsLoading(true);
+        
+        AssistantService.getById(assistantId)
+          .then(assistant => {
+            setFlowData({
+              nodes: assistant.nodes || [],
+              edges: assistant.edges || []
+            });
+            setIsLoading(false);
+          })
+          .catch(error => {
+            console.error('Erreur lors du chargement du flowchart:', error);
+            setIsLoading(false);
+          });
+      }
     }
-  }, [assistantId]);
+  }, [assistantId, storeNodes, storeEdges]);
 
   // Charger les messages sauvegardés
   useEffect(() => {
@@ -404,6 +526,18 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                             </button>
                           ))}
                         </motion.div>
+                      )}
+                      
+                      {/* Afficher le champ de saisie directement dans la conversation pour les entrées libres */}
+                      {message.sender === 'bot' && !message.isTyping && message.type === 'input' && message.elementData && (
+                        <InlineInputField 
+                          message={message} 
+                          setMessages={setMessages}
+                          currentNodeId={currentNodeId}
+                          setCurrentNodeId={setCurrentNodeId}
+                          flowData={flowData}
+                          processNodeElements={processNodeElements}
+                        />
                       )}
                     </div>
                   </motion.div>
