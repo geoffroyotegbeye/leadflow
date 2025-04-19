@@ -1,0 +1,169 @@
+.flow-editor {
+  @apply h-[calc(100vh-7rem)] bg-gray-50 dark:bg-gray-900 overflow-hidden;
+}
+
+/* Les styles du panel latéral ont été supprimés car remplacés par la modal */
+
+.flow-node-icon-container {
+  @apply p-3 rounded-lg mb-2;
+}
+
+.flow-node-elements {
+  @apply mt-2 space-y-2;
+}
+
+.flow-node-element {
+  @apply p-2 rounded bg-white/50 dark:bg-gray-800/50;
+}
+
+.flow-element-type {
+  @apply text-xs font-medium text-gray-500 dark:text-gray-400;
+}
+
+/* Style pour les edges (connexions) */
+.react-flow__edge {
+  cursor: pointer;
+}
+
+.react-flow__edge:hover {
+  cursor: pointer;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
+.flow-element-content {
+  @apply mt-1 text-sm text-gray-900 dark:text-gray-100;
+}
+
+.flow-element-options {
+  @apply mt-1 pl-2 space-y-1;
+}
+
+.flow-element-option {
+  @apply text-xs text-gray-600 dark:text-gray-300 relative pr-4;
+}
+
+.flow-editor-container {
+  @apply flex-1 h-full transition-all duration-300 ease-in-out;
+}
+
+.flow-editor-container.preview-open {
+  @apply mr-96;
+}
+
+.flow-add-buttons {
+  @apply fixed bottom-6 right-6 flex flex-col items-center transition-all duration-300 ease-in-out;
+}
+
+.flow-add-button {
+  @apply p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-200;
+}
+
+.flow-node {
+  @apply relative p-3 rounded-lg shadow-md bg-white dark:bg-gray-800 border-2;
+  transition: all 0.2s ease;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.flow-node:hover {
+  transform: translateY(-2px);
+}
+
+.flow-node.selected {
+  @apply ring-2 ring-blue-500 ring-offset-2;
+}
+
+.flow-node-header {
+  @apply flex items-center space-x-2 text-sm font-medium;
+}
+
+.flow-node-content {
+  @apply mt-2 text-sm text-gray-600 dark:text-gray-300;
+}
+
+.flow-node-text {
+  @apply flex-1;
+}
+
+.flow-node-title {
+  @apply text-sm font-medium text-gray-900 dark:text-white;
+}
+
+.flow-node-description {
+  @apply text-xs text-gray-500 dark:text-gray-400 mt-1;
+}
+
+.flow-handle {
+  @apply w-3 h-3 bg-blue-500;
+}
+
+.flow-option-handle {
+  @apply w-2 h-2 bg-green-500;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.flow-element-option:hover .flow-option-handle {
+  opacity: 1;
+}
+
+.flow-node-element {
+  transition: background-color 0.2s ease;
+}
+
+.flow-node-element:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.flow-node-element-sequential::before {
+  content: '↓';
+  position: absolute;
+  left: -20px;
+  color: #9CA3AF;
+}
+
+.flow-node-element-simultaneous::before {
+  content: '⇉';
+  position: absolute;
+  left: -20px;
+  color: #9CA3AF;
+}
+
+.react-flow__handle {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background-color: #94a3b8 !important;
+}
+
+.react-flow__handle-left {
+  left: -5px !important;
+}
+
+.react-flow__handle-right {
+  right: -5px !important;
+}
+
+.react-flow__handle-top {
+  top: -5px !important;
+}
+
+.react-flow__handle-bottom {
+  bottom: -5px !important;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2 !important;
+  stroke: #64748b !important;
+}
+
+.react-flow__edge.animated path {
+  stroke-dasharray: 5,5 !important;
+  animation: dashdraw 0.5s linear infinite !important;
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}

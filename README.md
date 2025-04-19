@@ -1,37 +1,96 @@
-# LeadFlow - Outil No-Code pour Création de Chatbots Interactifs
+# LeadCX - Plateforme de Création de Chatbots
 
-**LeadFlow** est une plateforme no-code qui permet aux utilisateurs de créer des chatbots interactifs et personnalisables, conçus pour capturer des leads et interagir avec des visiteurs sur des sites web ou des applications. L'objectif est de fournir une solution simple, intuitive et dynamique pour automatiser les interactions avec les utilisateurs tout en générant des opportunités de leads pour les équipes commerciales.
+LeadCX est une plateforme complète pour la création, la gestion et le déploiement de chatbots conversationnels avec une interface visuelle intuitive basée sur des flowcharts.
 
-LeadFlow permet de construire des bots à plusieurs scénarios en utilisant une interface graphique facile à utiliser, sans nécessiter de compétences en programmation. Grâce à son éditeur visuel, les utilisateurs peuvent configurer des parcours de conversation, poser des questions, gérer des réponses conditionnelles, et collecter des informations précieuses, comme des noms, des emails et d'autres détails.
+## Architecture du Projet
 
----
+Le projet est divisé en deux parties principales :
 
-## 🌟 Objectif du Projet
+### Frontend (React + TypeScript)
 
-LeadFlow a pour objectif de simplifier le processus de création de chatbots pour les entreprises, afin qu'elles puissent automatiser la collecte de leads, interagir avec les clients et améliorer l'efficacité de leurs équipes commerciales. Ce projet vise à :
+Interface utilisateur permettant de :
+- Créer et éditer des flowcharts de conversation
+- Prévisualiser les chatbots en temps réel
+- Gérer les assistants et leurs configurations
 
-- Permettre la création de **chatbots** sans programmation, accessibles à tout le monde grâce à une interface intuitive.
-- Offrir des **scénarios conditionnels** pour personnaliser les interactions et s'adapter aux réponses des utilisateurs.
-- Collecter des **informations de contact** et autres données sur les leads dans le but de les qualifier et de les transmettre aux équipes commerciales.
-- Fournir des outils pour **analyser les conversations** et optimiser les flux de conversation des chatbots.
+### Backend (FastAPI + MongoDB)
 
----
+API RESTful pour :
+- Stocker et gérer les assistants
+- Gérer les configurations des chatbots
+- Fournir les données nécessaires au frontend
 
-## 🚀 Prérequis
+## Prérequis
 
-Avant de commencer, assurez-vous d'avoir installé les éléments suivants sur votre machine :
+- Python 3.8+
+- Node.js 14+
+- MongoDB
 
-- [Node.js](https://nodejs.org/) (version 16 ou plus) et npm (qui vient avec Node.js).
-- Un éditeur de code comme [VSCode](https://code.visualstudio.com/).
-- Une connexion Internet pour installer les dépendances.
+## Installation et Démarrage
 
----
+### Backend
 
-## 🛠️ Installation du projet
-
-### 1. Clonez le dépôt
-
-Clonez ce projet sur votre machine locale :
-
+1. Installer les dépendances Python :
 ```bash
-git clone https://github.com/geoffroyotegbeye/leadflow.git
+cd backend
+pip install -r requirements.txt
+```
+
+2. Configurer les variables d'environnement dans le fichier `.env` :
+```
+MONGO_URL=mongodb://localhost:27017
+MONGO_DB_NAME=LeadCX
+API_PORT=8000
+```
+
+3. Démarrer le serveur backend :
+```bash
+python run.py
+```
+
+Le serveur API sera accessible à l'adresse : http://localhost:8000
+
+Documentation de l'API : http://localhost:8000/docs
+
+### Frontend
+
+1. Installer les dépendances Node.js :
+```bash
+cd frontend
+npm install
+```
+
+2. Démarrer le serveur de développement :
+```bash
+npm start
+```
+
+L'application frontend sera accessible à l'adresse : http://localhost:3000
+
+## Fonctionnalités Principales
+
+- Création de flowcharts de conversation avec une interface drag-and-drop
+- Différents types de nœuds pour des interactions variées (texte, questions, médias, etc.)
+- Prévisualisation en temps réel des conversations
+- Sauvegarde et chargement des configurations
+- Import/export au format JSON
+- Gestion des assistants via l'API
+
+## API Endpoints
+
+### Assistants
+
+- `GET /api/assistants` - Récupérer tous les assistants
+- `GET /api/assistants/{id}` - Récupérer un assistant par son ID
+- `POST /api/assistants` - Créer un nouvel assistant
+- `PUT /api/assistants/{id}` - Mettre à jour un assistant
+- `DELETE /api/assistants/{id}` - Supprimer un assistant
+
+## Développement
+
+Le projet utilise :
+- TypeScript pour le typage statique
+- React pour l'interface utilisateur
+- React Flow pour les flowcharts
+- FastAPI pour l'API backend
+- MongoDB pour le stockage des données
