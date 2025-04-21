@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from app.api.auth import router as auth_router
 from app.api.assistant import router as assistant_router
+from app.api.media import media_router
 import logging
 
 # Configuration du logging
@@ -13,3 +14,4 @@ api_router = APIRouter()
 # Inclusion des modules
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(assistant_router, prefix="/assistants", tags=["assistants"])
+api_router.include_router(media_router)

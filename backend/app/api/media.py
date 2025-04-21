@@ -59,4 +59,5 @@ async def upload_media(
     
     except Exception as e:
         logger.error(f"Erreur lors de l'upload du fichier: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'upload du fichier: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur lors de l'upload: {str(e)}")

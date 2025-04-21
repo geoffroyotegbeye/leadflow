@@ -34,20 +34,57 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
   const [showInputTypeModal, setShowInputTypeModal] = React.useState(false);
   const [pendingInputType, setPendingInputType] = React.useState<ElementType['inputType']>('text');
 
-  const handleSelectElement = (type: ElementType['type']) => {
-    if (type === 'input') {
-      setShowInputTypeModal(true);
-      return;
-    }
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+const handleSelectElement = (type: ElementType['type']) => {
+  if (type === 'input') {
+    setShowInputTypeModal(true);
+    return;
+  }
+  if (type === 'image') {
+    // Ouvre l'input file pour sélectionner une image
+    fileInputRef.current?.click();
+    return;
+  }
+  const newElement: ElementType = {
+    id: crypto.randomUUID(),
+    type,
+    content: '',
+    displayMode: 'after'
+  };
+  onSelect(newElement);
+  onClose();
+};
+
+const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  // Upload via API
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', 'image');
+  try {
+    const response = await fetch('http://localhost:8000/api/upload/media', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Erreur lors de l\'upload');
+    const data = await response.json();
     const newElement: ElementType = {
       id: crypto.randomUUID(),
-      type,
-      content: '',
+      type: 'image',
+      content: data.path, // Chemin retourné par l'API
       displayMode: 'after'
     };
     onSelect(newElement);
     onClose();
-  };
+  } catch (err) {
+    alert("Erreur lors de l'upload de l'image");
+  } finally {
+    // Réinitialise l'input pour permettre un nouvel upload
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+};
 
   const handleInputTypeSelect = (inputType: ElementType['inputType']) => {
     const newElement: ElementType = {
@@ -78,6 +115,14 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
               >
                 <XMarkIcon className="h-6 w-6 dark:text-white" />
               </button>
+              {/* Input file caché pour l'upload image */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageFileChange}
+              />
             </div>
 
             {/* Boutons pour chaque type d'élément */}
@@ -122,30 +167,7 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
                 <span className="text-xs font-medium">Image</span>
                 <span className="text-[11px] text-gray-500 mt-1">Afficher une image</span>
               </button>
-              <button
-                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
-                onClick={() => handleSelectElement('video')}
-              >
-                <PlayIcon className="h-7 w-7 mb-1 text-red-500" />
-                <span className="text-xs font-medium">Vidéo</span>
-                <span className="text-[11px] text-gray-500 mt-1">Partager une vidéo</span>
-              </button>
-              <button
-                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
-                onClick={() => handleSelectElement('audio')}
-              >
-                <BellIcon className="h-7 w-7 mb-1 text-indigo-500" />
-                <span className="text-xs font-medium">Audio</span>
-                <span className="text-[11px] text-gray-500 mt-1">Envoyer un son</span>
-              </button>
-              <button
-                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
-                onClick={() => handleSelectElement('file')}
-              >
-                <CircleStackIcon className="h-7 w-7 mb-1 text-gray-600" />
-                <span className="text-xs font-medium">Fichier</span>
-                <span className="text-[11px] text-gray-500 mt-1">Partager un fichier</span>
-              </button>
+              
             </div>
 
             {/* Modal pour choisir le type d'entrée libre */}

@@ -41,7 +41,15 @@ const NodePreview: React.FC<NodePreviewProps> = ({ node, onClick }) => {
             </div>
             <div className="flex-grow overflow-hidden">
               <div className="truncate">
-                {element.content || ELEMENT_TYPES[element.type].label}
+                {element.type === 'image' ? (
+                  <img
+                    src={element.mediaUrl || element.content}
+                    alt="Image"
+                    className="max-h-24 max-w-full object-contain rounded border border-gray-200 bg-white"
+                  />
+                ) : (
+                  element.content || ELEMENT_TYPES[element.type].label
+                )}
               </div>
               {element.type === 'question' && element.options && element.options.length > 0 && (
                 <div className="text-xs text-gray-400 mt-1">

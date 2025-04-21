@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const messageInput = document.getElementById('message-input');
   const sendButton = document.getElementById('send-button');
   const resetButton = document.getElementById('reset-button');
-  const themeToggle = document.getElementById('theme-toggle');
+  // const themeToggle = document.getElementById('theme-toggle'); // supprimé car plus de bouton dark mode
   const assistantId = document.getElementById('assistant-data').dataset.assistantId;
   const publicId = document.getElementById('assistant-data').dataset.publicId;
   const baseUrl = document.getElementById('assistant-data').dataset.baseUrl;
@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   resetButton.addEventListener('click', resetChat);
-  themeToggle.addEventListener('click', toggleTheme);
+  // themeToggle.addEventListener('click', toggleTheme); // supprimé car plus de bouton dark mode
   
   // Charger les données initiales
   loadFlowData();
