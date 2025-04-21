@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 from datetime import datetime
 from bson import ObjectId
@@ -66,6 +66,11 @@ class AssistantModel(BaseModel):
     description: Optional[str] = None
     nodes: List[Node] = []
     edges: List[Edge] = []
+    is_published: bool = False
+    publish_date: Optional[datetime] = None
+    public_id: Optional[str] = None
+    public_url: Optional[str] = None
+    embed_script: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
@@ -80,6 +85,7 @@ class AssistantCreate(BaseModel):
     description: Optional[str] = None
     nodes: List[Node] = []
     edges: List[Edge] = []
+    is_published: Optional[bool] = False
 
 # Modèle pour la mise à jour d'un assistant
 class AssistantUpdate(BaseModel):
@@ -87,6 +93,7 @@ class AssistantUpdate(BaseModel):
     description: Optional[str] = None
     nodes: Optional[List[Node]] = None
     edges: Optional[List[Edge]] = None
+    is_published: Optional[bool] = None
 
 # Modèle pour la réponse de l'API
 class AssistantResponse(BaseModel):
@@ -95,5 +102,19 @@ class AssistantResponse(BaseModel):
     description: Optional[str] = None
     nodes: List[Node]
     edges: List[Edge]
+    is_published: bool = False
+    publish_date: Optional[datetime] = None
+    public_id: Optional[str] = None
+    public_url: Optional[str] = None
+    embed_script: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+# Modèle pour la publication d'un assistant
+class AssistantPublish(BaseModel):
+    is_published: bool
+
+# Modèle pour le script d'intégration
+class EmbedScriptResponse(BaseModel):
+    script: str
+    public_url: str

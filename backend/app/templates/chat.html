@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ assistant.name }} - LeadFlow Assistant</title>
+    <link rel="stylesheet" href="{{ base_url }}/static/css/chat.css">
+    <link rel="icon" type="image/png" href="{{ base_url }}/static/media/favicon.png">
+    <meta name="description" content="Discutez avec {{ assistant.name }}, un assistant virtuel propulsé par LeadFlow.">
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>{{ assistant.name }}</h1>
+                <div class="assistant-info">
+                    <span class="assistant-status"></span>
+                    <span>En ligne</span>
+                </div>
+                <div class="controls">
+                    <button id="theme-toggle" title="Changer de thème">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                        </svg>
+                    </button>
+                    <button id="reset-button" title="Recommencer la conversation">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <!-- Les messages seront ajoutés ici dynamiquement -->
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="Tapez votre message ici...">
+                <button id="send-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Propulsé par <a href="{{ base_url }}" target="_blank">LeadFlow</a>
+        </div>
+    </div>
+    
+    <!-- Données de l'assistant -->
+    <div id="assistant-data" 
+         data-assistant-id="{{ assistant.id }}" 
+         data-public-id="{{ assistant.public_id }}" 
+         data-base-url="{{ base_url }}"
+         style="display: none;">
+    </div>
+    
+    <!-- Scripts -->
+    <script src="{{ base_url }}/static/js/chat.js"></script>
+</body>
+</html>

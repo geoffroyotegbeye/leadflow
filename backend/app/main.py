@@ -21,6 +21,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Montage des fichiers statiques et media
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 # Middleware pour compresser les réponses (utile pour les gros objets JSON)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 

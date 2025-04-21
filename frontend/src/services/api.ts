@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Node, Edge } from 'reactflow';
 
 // Configuration de l'API
@@ -37,7 +37,10 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     if (error.response) {
       // La requête a été faite et le serveur a répondu avec un code d'état en dehors de la plage 2xx
-      console.error(`❌ Erreur API ${error.response.status}: ${error.response.data?.detail || JSON.stringify(error.response.data)}`);
+      const errorDetail = error.response.data && typeof error.response.data === 'object' && 'detail' in (error.response.data as any)
+        ? (error.response.data as any).detail
+        : JSON.stringify(error.response.data);
+      console.error(`❌ Erreur API ${error.response.status}: ${errorDetail}`);
     } else if (error.request) {
       // La requête a été faite mais aucune réponse n'a été reçue
       console.error('❌ Pas de réponse du serveur. Vérifiez que le backend est en cours d\'exécution.');
@@ -56,8 +59,19 @@ export interface Assistant {
   description?: string;
   nodes: Node[];
   edges: Edge[];
+  is_published?: boolean;
+  publish_date?: string;
+  public_id?: string;
+  public_url?: string;
+  embed_script?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+// Interface pour la réponse du script d'intégration
+export interface EmbedScriptResponse {
+  script: string;
+  public_url: string;
 }
 
 // Fonction pour logger les erreurs avec plus de détails
@@ -90,7 +104,7 @@ const AssistantService = {
       });
       console.log(response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       logError('Erreur lors de la récupération des assistants', error);
       throw error;
     }
@@ -110,7 +124,7 @@ const AssistantService = {
       });
       console.log(`✅ Assistant ${id} récupéré avec succès:`, response.data.name);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       logError(`Erreur lors de la récupération de l'assistant ${id}`, error);
       throw error;
     }
@@ -129,7 +143,7 @@ const AssistantService = {
       });
       console.log('✅ Assistant créé avec succès:', response.data.id);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       logError('Erreur lors de la création de l\'assistant', error);
       throw error;
     }
@@ -148,7 +162,7 @@ const AssistantService = {
       });
       console.log(`✅ Assistant ${id} mis à jour avec succès`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       logError(`Erreur lors de la mise à jour de l'assistant ${id}`, error);
       throw error;
     }
@@ -166,7 +180,7 @@ const AssistantService = {
         timeout: 10000
       });
       console.log(`✅ Assistant ${id} supprimé avec succès`);
-    } catch (error) {
+    } catch (error: any) {
       logError(`Erreur lors de la suppression de l'assistant ${id}`, error);
       throw error;
     }
@@ -196,15 +210,13 @@ const AssistantService = {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-          // Ne pas définir Accept-Encoding, le navigateur s'en charge automatiquement
         },
         timeout: timeout
-        // Laisser axios gérer la transformation des données
       });
       
       console.log(`✅ Flowchart de l'assistant ${id} sauvegardé avec succès`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       logError(`Erreur lors de la sauvegarde du flowchart de l'assistant ${id}`, error);
       throw error;
     }
@@ -213,26 +225,64 @@ const AssistantService = {
   // Importer un assistant depuis un fichier JSON
   async importFromJson(jsonData: any): Promise<Assistant> {
     try {
-      console.log('💾 Importation d\'un assistant depuis JSON...');
+      console.log('📥 Importation d\'un assistant depuis JSON...');
       
-      // Calculer la taille approximative des données
-      const dataSize = JSON.stringify(jsonData).length;
-      console.log(`Taille des données: ${(dataSize / 1024).toFixed(2)} KB`);
+      // Vérifier que le JSON contient les données nécessaires
+      if (!jsonData.name || !jsonData.nodes || !jsonData.edges) {
+        throw new Error('Le fichier JSON ne contient pas les données nécessaires (name, nodes, edges)');
+      }
       
-      // Utiliser l'endpoint d'importation spécifique
-      const response = await axios.post(`${API_URL}/assistants/import`, jsonData, {
+      // Créer l'assistant
+      const response = await axios.post(`${API_URL}/assistants`, jsonData, {
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip, deflate'
+          'Accept': 'application/json'
         },
-        timeout: 30000, // 30 secondes pour les gros fichiers
+        timeout: 30000 // Donner plus de temps pour l'importation
       });
       
       console.log('✅ Assistant importé avec succès:', response.data.id);
       return response.data;
-    } catch (error) {
-      logError('Erreur lors de l\'importation de l\'assistant depuis JSON', error);
+    } catch (error: any) {
+      logError('Erreur lors de l\'importation de l\'assistant', error);
+      throw error;
+    }
+  },
+
+  // Publier ou dépublier un assistant
+  async publishAssistant(id: string, isPublished: boolean): Promise<Assistant> {
+    try {
+      console.log(`${isPublished ? '💬 Publication' : '🔒 Dépublication'} de l'assistant ${id}...`);
+      const response = await axios.put(`${API_URL}/assistants/${id}/publish`, { is_published: isPublished }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+      console.log(`✅ Assistant ${id} ${isPublished ? 'publié' : 'dépublié'} avec succès`);
+      return response.data;
+    } catch (error: any) {
+      logError(`Erreur lors de la ${isPublished ? 'publication' : 'dépublication'} de l'assistant ${id}`, error);
+      throw error;
+    }
+  },
+
+  // Obtenir le script d'intégration pour un assistant publié
+  async getEmbedScript(id: string): Promise<EmbedScriptResponse> {
+    try {
+      console.log(`💻 Génération du script d'intégration pour l'assistant ${id}...`);
+      const response = await axios.get(`${API_URL}/assistants/${id}/embed`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      });
+      console.log(`✅ Script d'intégration généré avec succès`);
+      return response.data;
+    } catch (error: any) {
+      logError(`Erreur lors de la génération du script d'intégration pour l'assistant ${id}`, error);
       throw error;
     }
   }
