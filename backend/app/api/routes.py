@@ -246,7 +246,7 @@ async def update_assistant(assistant_id: str, assistant_update: AssistantUpdate,
             logger.error(f"Données trop volumineuses: {data_size} octets")
             raise HTTPException(
                 status_code=413, 
-                detail="Les données sont trop volumineuses. Essayez de réduire la complexité du leadcxchart."
+                detail="Les données sont trop volumineuses. Essayez de réduire la complexité du leadflowchart."
             )
         
         # Mise à jour dans MongoDB

@@ -43,7 +43,7 @@ const stats = [
   },
 ];
 
-const LOCAL_STORAGE_KEY = 'LeadCX:assistants';
+const LOCAL_STORAGE_KEY = 'leadflow:assistants';
 
 const DashboardPage: React.FC = () => {
   const [assistants, setAssistants] = useState<Array<{ id: string; name: string; description: string }>>([]);
@@ -114,7 +114,7 @@ const DashboardPage: React.FC = () => {
             className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2"
           >
             <SparklesIcon className="h-8 w-8 text-blue-500" />
-            Bienvenue sur LeadCX
+            Bienvenue sur leadflow
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: -20 }}

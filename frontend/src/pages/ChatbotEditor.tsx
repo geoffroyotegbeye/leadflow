@@ -204,7 +204,7 @@ const FlowEditor = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [isPreviewOpen, setIsPreviewOpen] = useState(() => {
     if (typeof window !== 'undefined' && assistantId) {
-      const v = localStorage.getItem(`LeadCX:assistant:${assistantId}:panelOpen`);
+      const v = localStorage.getItem(`leadflow:assistant:${assistantId}:panelOpen`);
       return v === 'true';
     }
     return false;
@@ -653,7 +653,7 @@ const FlowEditor = () => {
       {/* Persistance de l'état du panel */}
       {useEffect(() => {
         if (assistantId) {
-          localStorage.setItem(`LeadCX:assistant:${assistantId}:panelOpen`, isPreviewOpen ? 'true' : 'false');
+          localStorage.setItem(`leadflow:assistant:${assistantId}:panelOpen`, isPreviewOpen ? 'true' : 'false');
         }
       }, [isPreviewOpen, assistantId])}
 

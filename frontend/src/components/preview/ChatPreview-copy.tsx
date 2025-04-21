@@ -19,7 +19,7 @@ interface ChatPreviewProps {
 
 // Fonction pour obtenir la clé de stockage pour un assistant
 const getStorageKey = (assistantId?: string) => {
-  return assistantId ? `LeadCX:assistant:${assistantId}` : 'LeadCX:chatbot';
+  return assistantId ? `leadflow:assistant:${assistantId}` : 'leadflow:chatbot';
 };
 
 const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId }) => {

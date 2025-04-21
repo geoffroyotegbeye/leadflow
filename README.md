@@ -1,6 +1,6 @@
-# LeadCX - Plateforme de Création de Chatbots
+# leadflow - Plateforme de Création de Chatbots
 
-LeadCX est une plateforme complète pour la création, la gestion et le déploiement de chatbots conversationnels avec une interface visuelle intuitive basée sur des flowcharts.
+leadflow est une plateforme complète pour la création, la gestion et le déploiement de chatbots conversationnels avec une interface visuelle intuitive basée sur des flowcharts.
 
 ## Architecture du Projet
 
@@ -39,7 +39,7 @@ pip install -r requirements.txt
 2. Configurer les variables d'environnement dans le fichier `.env` :
 ```
 MONGO_URL=mongodb://localhost:27017
-MONGO_DB_NAME=LeadCX
+MONGO_DB_NAME=leadflow
 API_PORT=8000
 ```
 

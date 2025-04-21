@@ -33,7 +33,7 @@ const Sidebar: React.FC = () => {
       <div className={`p-6 flex ${collapsed ? 'justify-center' : 'justify-between'} items-center`}>
         {!collapsed && (
           <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            LeadCX
+            leadflow
           </span>
         )}
         <Tooltip content={collapsed ? "Déplier le menu" : "Replier le menu"}>

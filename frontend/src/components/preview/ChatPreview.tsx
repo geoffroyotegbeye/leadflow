@@ -5,6 +5,73 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import './ChatPreview.css';
 import { useAssistantStore } from '../../stores/assistantStore';
+import InlineMultiFieldForm from './InlineMultiFieldForm';
+
+// Composant pour formulaire multi-champs dans le chat
+interface InlineMultiFieldFormMessageProps {
+  element: any;
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  currentNodeId: string | null;
+  setCurrentNodeId: React.Dispatch<React.SetStateAction<string | null>>;
+  flowData: { nodes: any[]; edges: any[] };
+  processNodeElements: (node: any) => void;
+}
+
+const InlineMultiFieldFormMessage: React.FC<InlineMultiFieldFormMessageProps> = ({
+  element,
+  setMessages,
+  currentNodeId,
+  setCurrentNodeId,
+  flowData,
+  processNodeElements
+}) => {
+  if (!element.formFields) return null;
+
+  const handleSubmit = (values: Record<string, any>) => {
+    // Formater les données du formulaire pour un affichage lisible
+    const formattedContent = Object.entries(values)
+      .map(([key, value]) => {
+        // Récupérer le label du champ si disponible
+        const field = element.formFields?.find(f => f.name === key);
+        const label = field?.label || key;
+        return `${label}: ${value}`;
+      })
+      .join('\n');
+
+    // Ajoute la réponse utilisateur dans le chat avec les données formatées
+    setMessages(prev => [
+      ...prev,
+      {
+        id: `user-form-${Date.now()}`,
+        content: formattedContent,
+        type: 'form',
+        sender: 'user',
+        timestamp: Date.now(),
+        visible: true,
+        elementData: { formValues: values } // Stocker les valeurs brutes pour référence future
+      }
+    ]);
+    // Passe au node suivant (logique simple: edge sortante)
+    const nextEdge = flowData.edges.find(e => e.source === currentNodeId);
+    if (nextEdge) {
+      const nextNode = flowData.nodes.find(n => n.id === nextEdge.target);
+      if (nextNode) {
+        setCurrentNodeId(nextNode.id);
+        processNodeElements(nextNode);
+      }
+    }
+  };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.3 }}
+      className="mt-4 mb-2 mx-2"
+    >
+      <InlineMultiFieldForm fields={element.formFields} onSubmit={handleSubmit} />
+    </motion.div>
+  );
+};
 
 // Composant pour l'entrée de texte inline dans la conversation
 interface InlineInputFieldProps {
@@ -134,7 +201,7 @@ interface ChatPreviewProps {
 
 // Fonction pour obtenir la clé de stockage pour un assistant
 const getChatStorageKey = (assistantId?: string) => {
-  return assistantId ? `LeadCX:assistant:${assistantId}:chat` : 'LeadCX:chatbot:chat';
+  return assistantId ? `leadflow:assistant:${assistantId}:chat` : 'leadflow:chatbot:chat';
 };
 
 const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId }) => {
@@ -499,14 +566,27 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           <span></span>
                         </div>
                       ) : (
-                        <motion.p 
+                        <motion.div 
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ duration: 0.3 }}
                           className="text-sm"
                         >
-                          {message.content}
-                        </motion.p>
+                          {message.type === 'form' ? (
+                            <div className="form-response">
+                              {message.content.split('\n').map((line, idx) => {
+                                const [label, value] = line.split(': ');
+                                return (
+                                  <div key={idx} className="mb-1">
+                                    <span className="font-semibold">{label}:</span> {value}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p>{message.content}</p>
+                          )}
+                        </motion.div>
                       )}
                       {/* Afficher les options si présentes et que le message n'est plus en train d'être tapé */}
                       {message.sender === 'bot' && !message.isTyping && message.options && message.options.length > 0 && (
@@ -548,6 +628,28 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Affichage du formulaire multi-champs si le node courant est de type form */}
+      {(() => {
+        const currentNode = flowData.nodes.find(n => n.id === currentNodeId);
+        if (currentNode && currentNode.data && currentNode.data.elements) {
+          const formElement = currentNode.data.elements.find((el: any) => el.type === 'form');
+          if (formElement) {
+            return (
+              <InlineMultiFieldFormMessage
+                element={formElement}
+                setMessages={setMessages}
+                currentNodeId={currentNodeId}
+                setCurrentNodeId={setCurrentNodeId}
+                flowData={flowData}
+                processNodeElements={processNodeElements}
+              />
+            );
+          }
+        }
+        return null;
+      })()}
+
       
       {/* Affichage dynamique du champ d'entrée selon l'élément attendu */}
       {(() => {

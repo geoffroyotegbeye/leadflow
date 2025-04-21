@@ -13,11 +13,11 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("leadcx-api")
+logger = logging.getLogger("leadflow-api")
 
 app = FastAPI(
-    title="LeadCX API",
-    description="API pour la gestion des assistants conversationnels LeadCX",
+    title="leadflow API",
+    description="API pour la gestion des assistants conversationnels leadflow",
     version="1.0.0"
 )
 
@@ -77,4 +77,4 @@ async def shutdown_db_client():
 
 @app.get("/")
 async def root():
-    return {"message": "Bienvenue sur l'API LeadCX"}
+    return {"message": "Bienvenue sur l'API leadflow"}

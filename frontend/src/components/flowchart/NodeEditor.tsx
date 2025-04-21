@@ -215,6 +215,101 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
           />
         );
 
+      case 'form':
+        return (
+          <div className="space-y-2">
+            <div className="mb-2">
+              <span className="font-semibold">Champs du formulaire</span>
+              <button
+                type="button"
+                className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                onClick={() => {
+                  const newFields = [
+                    ...(element.formFields || []),
+                    {
+                      type: 'text',
+                      label: 'Nouveau champ',
+                      required: false,
+                      name: `field_${Date.now()}`
+                    }
+                  ];
+                  handleElementChange(element.id, { formFields: newFields });
+                }}
+              >
+                + Ajouter un champ
+              </button>
+            </div>
+            {(element.formFields || []).map((field, idx) => (
+              <div key={idx} className="flex flex-col md:flex-row md:items-center gap-2 bg-gray-50 dark:bg-gray-700 p-2 rounded mb-2">
+                <input
+                  type="text"
+                  value={field.label}
+                  onChange={e => {
+                    const newFields = [...(element.formFields || [])];
+                    newFields[idx].label = e.target.value;
+                    handleElementChange(element.id, { formFields: newFields });
+                  }}
+                  placeholder="Label du champ"
+                  className="rounded border-gray-300 dark:border-gray-600 px-2 py-1 flex-1"
+                />
+                <select
+                  value={field.type}
+                  onChange={e => {
+                    const newFields = [...(element.formFields || [])];
+                    newFields[idx].type = e.target.value as any;
+                    handleElementChange(element.id, { formFields: newFields });
+                  }}
+                  className="rounded border-gray-300 dark:border-gray-600 px-2 py-1"
+                >
+                  <option value="text">Texte</option>
+                  <option value="email">Email</option>
+                  <option value="number">Nombre</option>
+                  <option value="tel">Téléphone</option>
+                  <option value="date">Date</option>
+                  <option value="select">Liste déroulante</option>
+                  <option value="checkbox">Case à cocher</option>
+                  <option value="radio">Boutons radio</option>
+                </select>
+                {(field.type === 'select' || field.type === 'radio') && (
+                  <input
+                    type="text"
+                    value={field.options ? field.options.join(',') : ''}
+                    onChange={e => {
+                      const newFields = [...(element.formFields || [])];
+                      newFields[idx].options = e.target.value.split(',').map(opt => opt.trim());
+                      handleElementChange(element.id, { formFields: newFields });
+                    }}
+                    placeholder="Options séparées par des virgules"
+                    className="rounded border-gray-300 dark:border-gray-600 px-2 py-1 flex-1"
+                  />
+                )}
+                <label className="flex items-center text-xs ml-2">
+                  <input
+                    type="checkbox"
+                    checked={!!field.required}
+                    onChange={e => {
+                      const newFields = [...(element.formFields || [])];
+                      newFields[idx].required = e.target.checked;
+                      handleElementChange(element.id, { formFields: newFields });
+                    }}
+                    className="mr-1"
+                  />
+                  Requis
+                </label>
+                <button
+                  type="button"
+                  className="ml-2 px-2 py-1 bg-red-600 text-white rounded text-xs"
+                  onClick={() => {
+                    const newFields = (element.formFields || []).filter((_, i) => i !== idx);
+                    handleElementChange(element.id, { formFields: newFields });
+                  }}
+                >
+                  Supprimer
+                </button>
+              </div>
+            ))}
+          </div>
+        );
       default:
         return null;
     }

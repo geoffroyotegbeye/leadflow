@@ -80,6 +80,38 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
               </button>
             </div>
 
+            {/* Boutons pour chaque type d'élément */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('text')}
+              >
+                <ChatBubbleLeftRightIcon className="h-7 w-7 mb-1 text-blue-500" />
+                <span className="text-xs font-medium">Message</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('question')}
+              >
+                <QuestionMarkCircleIcon className="h-7 w-7 mb-1 text-green-500" />
+                <span className="text-xs font-medium">Question</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('input')}
+              >
+                <EnvelopeIcon className="h-7 w-7 mb-1 text-yellow-500" />
+                <span className="text-xs font-medium">Entrée</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('form')}
+              >
+                <AdjustmentsHorizontalIcon className="h-7 w-7 mb-1 text-purple-500" />
+                <span className="text-xs font-medium">Formulaire</span>
+              </button>
+            </div>
+
             {/* Modal pour choisir le type d'entrée libre */}
             {showInputTypeModal ? (
               <div className="flex flex-col gap-4 items-center justify-center p-6">
@@ -103,29 +135,8 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
                   onClick={() => setShowInputTypeModal(false)}
                 >Annuler</button>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[60vh]">
-                {Object.entries(ELEMENT_TYPES)
-                  .filter(([type]) => ['text', 'question', 'input'].includes(type))
-                  .map(([type, info]) => {
-                    // Suppression des icônes comme demandé
-                    return (
-                      <button
-                        key={type}
-                        onClick={() => handleSelectElement(type as ElementType['type'])}
-                        className="flex flex-col items-center p-3 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition"
-                      >
-                        <div className="p-3 rounded-lg mb-2 bg-blue-50 dark:bg-blue-900/30">
-                          <span className="text-sm font-medium">{info.label}</span>
-                        </div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">
-                          {info.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-              </div>
-            )}
+            ) : null
+            }
 
           </div>
         </Dialog.Panel>

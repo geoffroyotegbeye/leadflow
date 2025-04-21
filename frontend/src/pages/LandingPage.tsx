@@ -144,7 +144,7 @@ const LandingPage = () => {
                   <FiMessageCircle className="text-white text-2xl" />
                 </div>
                 <span className={`ml-3 text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  LeadCX<span className="text-blue-600">OS</span>
+                  leadflow<span className="text-blue-600">OS</span>
                 </span>
               </Link>
             </div>
@@ -160,7 +160,7 @@ const LandingPage = () => {
                 Communauté
               </Link>
               <a 
-                href="https://github.com/LeadCX/LeadCX-os" 
+                href="https://github.com/leadflow/leadflow-os" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200 flex items-center`}
@@ -262,7 +262,7 @@ const LandingPage = () => {
                 Commencer gratuitement <FiChevronRight className="ml-2" />
               </Link>
               <a
-                href="https://github.com/LeadCX/LeadCX-os"
+                href="https://github.com/leadflow/leadflow-os"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`px-8 py-4 rounded-lg flex items-center justify-center ${
@@ -303,7 +303,7 @@ const LandingPage = () => {
           }`}>
             <img 
               src="/api/placeholder/1200/600" 
-              alt="LeadCX Interface" 
+              alt="leadflow Interface" 
               className="w-full object-cover"
             />
             <div className={`absolute inset-0 pointer-events-none ${
@@ -501,7 +501,7 @@ const LandingPage = () => {
             <p className={`text-xl max-w-3xl mx-auto ${
               darkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
-              LeadCX s'adapte à tous vos besoins conversationnels
+              leadflow s'adapte à tous vos besoins conversationnels
             </p>
           </div>
           
@@ -598,7 +598,7 @@ const LandingPage = () => {
               <p className={`text-lg mb-6 ${
                 darkMode ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                LeadCX est un projet open source maintenu par une communauté active de développeurs et de marketeurs. 
+                leadflow est un projet open source maintenu par une communauté active de développeurs et de marketeurs. 
                 Vous pouvez l'utiliser gratuitement, le modifier selon vos besoins et contribuer à son amélioration.
               </p>
               
@@ -623,7 +623,7 @@ const LandingPage = () => {
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="https://github.com/LeadCX/LeadCX-os"
+                  href="https://github.com/leadflow/leadflow-os"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
@@ -662,7 +662,7 @@ const LandingPage = () => {
                     <FiMessageCircle className="text-white text-2xl" />
                   </div>
                   <div>
-                    <div className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>LeadCXOS</div>
+                    <div className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>leadflowOS</div>
                     <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Open Source Project</div>
                   </div>
                 </div>
@@ -693,7 +693,7 @@ const LandingPage = () => {
                   <FiMessageCircle className="text-white text-2xl" />
                 </div>
                 <span className={`ml-3 text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  LeadCX<span className="text-blue-600">OS</span>
+                  leadflow<span className="text-blue-600">OS</span>
                 </span>
               </Link>
             </div>
@@ -708,7 +708,7 @@ const LandingPage = () => {
                 Communauté
               </Link>
               <a
-                href="https://github.com/LeadCX/LeadCX-os"
+                href="https://github.com/leadflow/leadflow-os"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200 flex items-center`}
@@ -719,7 +719,7 @@ const LandingPage = () => {
           </div>
           <div className="mt-8 border-t border-gray-200 pt-8">
             <p className={`text-center text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              &copy; {new Date().getFullYear()} LeadCXOS. All rights reserved.
+              &copy; {new Date().getFullYear()} leadflowOS. All rights reserved.
             </p>
           </div>
         </div>

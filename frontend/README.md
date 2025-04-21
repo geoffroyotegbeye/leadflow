@@ -1,14 +1,14 @@
-# LeadCX - Outil No-Code pour Création de Chatbots Interactifs
+# leadflow - Outil No-Code pour Création de Chatbots Interactifs
 
-**LeadCX** est une plateforme no-code qui permet aux utilisateurs de créer des chatbots interactifs et personnalisables, conçus pour capturer des leads et interagir avec des visiteurs sur des sites web ou des applications. L'objectif est de fournir une solution simple, intuitive et dynamique pour automatiser les interactions avec les utilisateurs tout en générant des opportunités de leads pour les équipes commerciales.
+**leadflow** est une plateforme no-code qui permet aux utilisateurs de créer des chatbots interactifs et personnalisables, conçus pour capturer des leads et interagir avec des visiteurs sur des sites web ou des applications. L'objectif est de fournir une solution simple, intuitive et dynamique pour automatiser les interactions avec les utilisateurs tout en générant des opportunités de leads pour les équipes commerciales.
 
-LeadCX permet de construire des bots à plusieurs scénarios en utilisant une interface graphique facile à utiliser, sans nécessiter de compétences en programmation. Grâce à son éditeur visuel, les utilisateurs peuvent configurer des parcours de conversation, poser des questions, gérer des réponses conditionnelles, et collecter des informations précieuses, comme des noms, des emails et d'autres détails.
+leadflow permet de construire des bots à plusieurs scénarios en utilisant une interface graphique facile à utiliser, sans nécessiter de compétences en programmation. Grâce à son éditeur visuel, les utilisateurs peuvent configurer des parcours de conversation, poser des questions, gérer des réponses conditionnelles, et collecter des informations précieuses, comme des noms, des emails et d'autres détails.
 
 ---
 
 ## 🌟 Objectif du Projet
 
-LeadCX a pour objectif de simplifier le processus de création de chatbots pour les entreprises, afin qu'elles puissent automatiser la collecte de leads, interagir avec les clients et améliorer l'efficacité de leurs équipes commerciales. Ce projet vise à :
+leadflow a pour objectif de simplifier le processus de création de chatbots pour les entreprises, afin qu'elles puissent automatiser la collecte de leads, interagir avec les clients et améliorer l'efficacité de leurs équipes commerciales. Ce projet vise à :
 
 - Permettre la création de **chatbots** sans programmation, accessibles à tout le monde grâce à une interface intuitive.
 - Offrir des **scénarios conditionnels** pour personnaliser les interactions et s'adapter aux réponses des utilisateurs.
@@ -34,4 +34,4 @@ Avant de commencer, assurez-vous d'avoir installé les éléments suivants sur v
 Clonez ce projet sur votre machine locale :
 
 ```bash
-git clone https://github.com/geoffroyotegbeye/LeadCX.git
+git clone https://github.com/geoffroyotegbeye/leadflow.git
