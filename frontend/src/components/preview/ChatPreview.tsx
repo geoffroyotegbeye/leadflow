@@ -213,6 +213,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   const [expandedView, setExpandedView] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
@@ -327,16 +328,21 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         isTyping: true,
         visible: false
       };
+      
+      // Stocker les données de l'élément dans le message
+      newMessage.elementData = element;
+      
       // Si c'est une question avec des options, ajouter les options au message
       if (element.type === 'question' && element.options && element.options.length > 0) {
         newMessage.options = element.options.map((opt: any) => opt.text);
-        newMessage.elementData = element;
       }
-      // Si c'est une entrée libre (input), ajouter les données de l'élément
+      // Si c'est une entrée libre (input), logger l'élément
       else if (element.type === 'input') {
-        // Stocker les données complètes de l'élément pour pouvoir accéder à inputType
-        newMessage.elementData = element;
         console.log('Élément input détecté:', element);
+      }
+      // Si c'est un média (image, vidéo, audio, fichier), stocker l'URL
+      else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
+        console.log(`Élément ${element.type} détecté:`, element);
       }
       setMessages(prev => [...prev, newMessage]);
       // Après un délai, marquer le message comme terminé (plus en train d'être tapé)
@@ -444,6 +450,9 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   
   // Gérer le clic sur une option
   const handleOptionClick = (optionText: string, elementData: any) => {
+    // Définir l'option sélectionnée pour le style visuel
+    setSelectedOption(optionText);
+    
     // Ajouter le message de l'utilisateur avec l'option choisie
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -457,7 +466,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     setMessages(prev => [...prev, userMessage]);
     
     // Trouver l'option correspondante dans les données de l'élément
-    const matchedOption = elementData.options.find(
+    const matchedOption = elementData?.options?.find(
       (opt: any) => opt.text === optionText
     );
     
@@ -467,7 +476,13 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       if (targetNode) {
         setCurrentNodeId(targetNode.id);
         processNodeElements(targetNode);
+        
+        // Réinitialiser l'option sélectionnée après le traitement
+        setTimeout(() => setSelectedOption(null), 500);
       }
+    } else {
+      // Réinitialiser l'option sélectionnée après un court délai si pas de navigation
+      setTimeout(() => setSelectedOption(null), 500);
     }
   };
   
@@ -583,28 +598,120 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                 );
                               })}
                             </div>
+                          ) : message.type === 'image' && message.elementData?.mediaUrl ? (
+                            <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
+                              <div className="relative w-full">
+                                <img 
+                                  src={message.elementData.mediaUrl} 
+                                  alt={message.content || 'Image'} 
+                                  className="max-w-full rounded-t-lg max-h-64 object-contain mx-auto p-2" 
+                                  onError={(e) => {
+                                    console.error("Erreur de chargement d'image:", message.elementData.mediaUrl);
+                                    e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+non+disponible';
+                                  }}
+                                />
+                              </div>
+                              {message.content && <p className="p-3 text-sm border-t border-gray-100 dark:border-gray-700">{message.content}</p>}
+                            </div>
+                          ) : message.type === 'video' && message.elementData?.mediaUrl ? (
+                            <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
+                              <div className="relative w-full">
+                                <video 
+                                  src={message.elementData.mediaUrl} 
+                                  controls 
+                                  className="max-w-full rounded-t-lg max-h-64 mx-auto p-2" 
+                                  onError={(e) => {
+                                    console.error("Erreur de chargement vidéo:", message.elementData.mediaUrl);
+                                  }}
+                                />
+                              </div>
+                              {message.content && <p className="p-3 text-sm border-t border-gray-100 dark:border-gray-700">{message.content}</p>}
+                            </div>
+                          ) : message.type === 'audio' && message.elementData?.mediaUrl ? (
+                            <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm p-3">
+                              <audio 
+                                src={message.elementData.mediaUrl} 
+                                controls 
+                                className="w-full" 
+                                onError={(e) => {
+                                  console.error("Erreur de chargement audio:", message.elementData.mediaUrl);
+                                }}
+                              />
+                              {message.content && <p className="mt-2 text-sm">{message.content}</p>}
+                            </div>
+                          ) : message.type === 'file' && message.elementData?.fileUrl ? (
+                            <div className="media-container">
+                              <a 
+                                href={message.elementData.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg my-2 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                </svg>
+                                {message.content || 'Télécharger le fichier'}
+                              </a>
+                            </div>
                           ) : (
                             <p>{message.content}</p>
                           )}
                         </motion.div>
                       )}
                       {/* Afficher les options si présentes et que le message n'est plus en train d'être tapé */}
-                      {message.sender === 'bot' && !message.isTyping && message.options && message.options.length > 0 && (
+                      {message.sender === 'bot' && !message.isTyping && (
+                        (message.options && message.options.length > 0) || (message.elementData?.options && message.elementData.options.length > 0)
+                      ) && (
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.3, delay: 0.2 }}
                           className="mt-2 space-y-1"
                         >
-                          {message.options.map((option, index) => (
-                            <button
-                              key={index}
-                              onClick={() => handleOptionClick(option, message.elementData)}
-                              className="block w-full text-left text-sm px-3 py-1.5 rounded bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500 text-gray-700 dark:text-white transition-colors"
-                            >
-                              {option}
-                            </button>
-                          ))}
+                          <div className="flex flex-row gap-2 overflow-x-auto py-2">
+                            {/* Si nous avons des options avec images dans elementData (nouveau format) */}
+                            {message.elementData?.options && message.elementData.options.length > 0 ? (
+                              message.elementData.options.map((option: any, index: number) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleOptionClick(option.text, message.elementData)}
+                                  className={
+                                    `flex flex-col items-center justify-center px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-800 transition min-w-[72px]` +
+                                    (selectedOption === option.text ? ' ring-2 ring-blue-500' : '')
+                                  }
+                                  style={{ minWidth: option.imageUrl ? 88 : 72 }}
+                                >
+                                  {option.imageUrl && (
+                                    <img 
+                                      src={option.imageUrl} 
+                                      alt={option.text || `Option ${index+1}`} 
+                                      className="h-12 w-12 object-cover rounded mb-1 border border-gray-200 dark:border-gray-600" 
+                                      onError={(e) => {
+                                        e.currentTarget.src = 'https://via.placeholder.com/80?text=Error';
+                                      }}
+                                    />
+                                  )}
+                                  {option.text && (
+                                    <span className="text-xs text-gray-700 dark:text-gray-200 text-center break-words max-w-[80px]">{option.text}</span>
+                                  )}
+                                </button>
+                              ))
+                            ) : (
+                              /* Convertir les options texte simples (ancien format) en nouveau format */
+                              message.options && message.options.map((option, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleOptionClick(option, message.elementData)}
+                                  className={
+                                    `flex flex-col items-center justify-center px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-800 transition min-w-[72px]` +
+                                    (selectedOption === option ? ' ring-2 ring-blue-500' : '')
+                                  }
+                                >
+                                  <span className="text-xs text-gray-700 dark:text-gray-200 text-center break-words max-w-[80px]">{option}</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
                         </motion.div>
                       )}
                       

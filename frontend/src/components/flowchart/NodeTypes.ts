@@ -56,17 +56,17 @@ export enum NodeType {
 export const ELEMENT_TYPES = {
   text: {
     label: 'Message texte',
-    description: 'Afficher un message simple dans le chat',
+    description: 'Envoyer une information',
     icon: 'ChatBubbleLeftRightIcon',
   },
   question: {
     label: 'Question à choix',
-    description: 'Proposer plusieurs réponses et branchements',
+    description: 'Choix parmi des options',
     icon: 'QuestionMarkCircleIcon',
   },
   input: {
     label: 'Entrée libre',
-    description: 'Demander à l’utilisateur un texte, un email ou un numéro',
+    description: 'Demande une réponse simple',
     icon: 'EnvelopeIcon',
   },
   api_call: {
@@ -79,7 +79,7 @@ export const ELEMENT_TYPES = {
   },
   form: {
     label: 'Formulaire',
-    description: 'Créer un formulaire personnalisé avec différents champs'
+    description: 'Plusieurs champs à remplir'
   },
   image: {
     label: 'Image',
