@@ -10,6 +10,8 @@ import ResetPasswordPage from '../pages/ResetPasswordPage';
 import VerificationCodePage from '../pages/VerificationCodePage';
 import DashboardPage from '../pages/DashboardPage';
 import ChatbotEditor from '../pages/ChatbotEditor';
+import FeaturesPage from '../pages/FeaturesPage';
+import DocumentationPage from '../pages/DocumentationPage';
 
 const Routes: React.FC = () => {
   return (
@@ -18,6 +20,16 @@ const Routes: React.FC = () => {
       <Route path="/" element={
         <MainLayout>
           <LandingPage />
+        </MainLayout>
+      } />
+      <Route path="/features" element={
+        <MainLayout>
+          <FeaturesPage />
+        </MainLayout>
+      } />
+      <Route path="/documentation" element={
+        <MainLayout>
+          <DocumentationPage />
         </MainLayout>
       } />
       <Route path="/login" element={

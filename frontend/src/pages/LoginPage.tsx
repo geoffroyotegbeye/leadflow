@@ -5,16 +5,40 @@ import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import AnimatedBackground from '../components/AnimatedBackground';
 import GlassCard from '../components/GlassCard';
 import Input from '../components/Input';
+import { login } from '../services/auth';
+import { useToast } from '../components/ui/ToastContainer';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+const { showToast } = useToast();
+
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement login logic
-    console.log('Login attempt:', { email, password });
+    setLoading(true);
+    
+    try {
+      const response = await login(email, password);
+      // Stocker le token JWT dans localStorage
+      localStorage.setItem("token", response.data.access_token);
+      // Stocker les infos utilisateur si nécessaire
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      
+      showToast({ type: 'success', message: 'Connexion réussie. Redirection...' });
+      // Rediriger vers le tableau de bord
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1000); // Petit délai pour voir le message de succès
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.detail || "Erreur lors de la connexion";
+      showToast({ type: 'error', message: errorMessage });
+    }
+    
+    setLoading(false);
   };
+
 
   return (
     <>
@@ -109,29 +133,32 @@ const LoginPage: React.FC = () => {
                   </div>
 
                   <div className="text-sm">
-                    <a
-                      href="#"
+                    <Link
+                      to="/forgot-password"
                       className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                     >
                       Mot de passe oublié?
-                    </a>
+                    </Link>
                   </div>
                 </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  className="group relative w-full flex justify-center py-3 px-4 rounded-xl
-                    bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
-                    text-white font-medium
-                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                    transform transition-all duration-200
-                    shadow-lg hover:shadow-xl
-                    dark:focus:ring-offset-gray-900"
-                >
-                  Se connecter
-                </motion.button>
+                
+<motion.button
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.98 }}
+  type="submit"
+  disabled={loading}
+  className="group relative w-full flex justify-center py-3 px-4 rounded-xl
+    bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
+    text-white font-medium
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+    transform transition-all duration-200
+    shadow-lg hover:shadow-xl
+    dark:focus:ring-offset-gray-900
+    disabled:opacity-70 disabled:cursor-not-allowed"
+>
+  {loading ? 'Connexion en cours...' : 'Se connecter'}
+</motion.button>
               </motion.form>
             </div>
           </GlassCard>

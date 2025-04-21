@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from app.api.routes import assistant_router
-from app.db.mongodb import connect_to_mongo, close_mongo_connection
+from app.api.routes import api_router
+from app.database.mongodb import get_database, close_mongo_connection
 import logging
 import time
 import traceback
@@ -64,16 +64,20 @@ async def log_requests(request: Request, call_next):
         )
 
 # Inclure les routes de l'API
-app.include_router(assistant_router, prefix="/api", tags=["assistants"])
+app.include_router(api_router, prefix="/api", tags=["api"])
 
 # Événements de démarrage et d'arrêt pour la connexion à MongoDB
 @app.on_event("startup")
 async def startup_db_client():
-    await connect_to_mongo()
+    # Initialiser la connexion à MongoDB
+    await get_database()
+    logger.info("Connexion à MongoDB établie")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    # Fermer la connexion à MongoDB
     await close_mongo_connection()
+    logger.info("Connexion à MongoDB fermée")
 
 @app.get("/")
 async def root():

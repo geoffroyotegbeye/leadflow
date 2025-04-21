@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LockClosedIcon } from '@heroicons/react/24/outline';
 import AnimatedBackground from '../components/AnimatedBackground';
 import GlassCard from '../components/GlassCard';
 import Input from '../components/Input';
+import { resetPassword } from '../services/auth';
+import { useToast } from '../components/ui/ToastContainer';
 
 const ResetPasswordPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +14,24 @@ const ResetPasswordPage: React.FC = () => {
     confirmPassword: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState('');
+  const { showToast } = useToast();
+  const location = useLocation();
+
+  // Récupérer le token depuis l'URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tokenParam = searchParams.get('token');
+    if (tokenParam) {
+      setToken(tokenParam);
+    } else {
+      showToast({ 
+        type: 'error', 
+        message: 'Token de réinitialisation manquant. Veuillez utiliser le lien reçu par email.' 
+      });
+    }
+  }, [location, showToast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -20,13 +40,50 @@ const ResetPasswordPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password === formData.confirmPassword) {
-      setIsSubmitted(true);
-      // TODO: Implement password reset logic
-      console.log('Password reset attempt:', formData);
+    
+    // Vérifier que le token est présent
+    if (!token) {
+      showToast({ 
+        type: 'error', 
+        message: 'Token de réinitialisation manquant. Veuillez utiliser le lien reçu par email.' 
+      });
+      return;
     }
+    
+    // Vérifier que les mots de passe correspondent
+    if (formData.password !== formData.confirmPassword) {
+      showToast({ type: 'error', message: 'Les mots de passe ne correspondent pas.' });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Appel à l'API de réinitialisation de mot de passe
+      await resetPassword(token, formData.password);
+      
+      // Afficher un message de succès
+      showToast({ 
+        type: 'success', 
+        message: 'Votre mot de passe a été réinitialisé avec succès. Vous allez être redirigé vers la page de connexion.' 
+      });
+      
+      setIsSubmitted(true);
+      
+      // Rediriger vers la page de connexion après un court délai
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 3000);
+      
+    } catch (err: any) {
+      // Gestion des erreurs
+      const errorMessage = err?.response?.data?.detail || "Erreur lors de la réinitialisation du mot de passe.";
+      showToast({ type: 'error', message: errorMessage });
+    }
+    
+    setLoading(false);
   };
 
   return (
@@ -104,15 +161,17 @@ const ResetPasswordPage: React.FC = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
+                    disabled={loading || !token}
                     className="group relative w-full flex justify-center py-3 px-4 rounded-xl
                       bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
                       text-white font-medium
                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                       transform transition-all duration-200
                       shadow-lg hover:shadow-xl
-                      dark:focus:ring-offset-gray-900"
+                      dark:focus:ring-offset-gray-900
+                      disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Réinitialiser le mot de passe
+                    {loading ? 'Réinitialisation en cours...' : 'Réinitialiser le mot de passe'}
                   </motion.button>
                 </motion.form>
               ) : (

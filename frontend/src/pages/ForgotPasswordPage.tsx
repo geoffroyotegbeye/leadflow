@@ -5,16 +5,42 @@ import { EnvelopeIcon } from '@heroicons/react/24/outline';
 import AnimatedBackground from '../components/AnimatedBackground';
 import GlassCard from '../components/GlassCard';
 import Input from '../components/Input';
+import { forgotPassword } from '../services/auth';
+import { useToast } from '../components/ui/ToastContainer';
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
-    // TODO: Implement forgot password logic
-    console.log('Forgot password request:', { email });
+    setLoading(true);
+    
+    try {
+      // Appel à l'API de mot de passe oublié
+      await forgotPassword(email);
+      
+      // Afficher un message de succès
+      showToast({ 
+        type: 'success', 
+        message: 'Si votre email est enregistré, vous recevrez un lien de réinitialisation.' 
+      });
+      
+      setIsSubmitted(true);
+    } catch (err: any) {
+      // Gérer les erreurs silencieusement pour éviter les attaques par énumération
+      // On affiche toujours le même message, même en cas d'erreur
+      showToast({ 
+        type: 'info', 
+        message: 'Si votre email est enregistré, vous recevrez un lien de réinitialisation.' 
+      });
+      
+      setIsSubmitted(true);
+    }
+    
+    setLoading(false);
   };
 
   return (
@@ -83,15 +109,17 @@ const ForgotPasswordPage: React.FC = () => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
+                    disabled={loading}
                     className="group relative w-full flex justify-center py-3 px-4 rounded-xl
                       bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
                       text-white font-medium
                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                       transform transition-all duration-200
                       shadow-lg hover:shadow-xl
-                      dark:focus:ring-offset-gray-900"
+                      dark:focus:ring-offset-gray-900
+                      disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Envoyer le lien de réinitialisation
+                    {loading ? 'Envoi en cours...' : 'Envoyer le lien de réinitialisation'}
                   </motion.button>
                 </motion.form>
               ) : (

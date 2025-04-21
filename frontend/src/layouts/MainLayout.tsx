@@ -11,7 +11,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
-      <nav className={`fixed top-0 right-0 m-4 z-50`}>
+      <nav className="fixed top-0 right-0 m-4 z-[100]">
         <button
           onClick={toggleDarkMode}
           className={`p-2 rounded-lg ${darkMode ? 'bg-gray-800 text-yellow-400' : 'bg-gray-100 text-gray-600'} 

@@ -5,6 +5,8 @@ import { EnvelopeIcon, LockClosedIcon, BuildingOfficeIcon, UserIcon } from '@her
 import AnimatedBackground from '../components/AnimatedBackground';
 import GlassCard from '../components/GlassCard';
 import Input from '../components/Input';
+import { register as registerApi } from '../services/auth';
+import { useToast } from '../components/ui/ToastContainer';
 
 const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -22,11 +24,50 @@ const RegisterPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+const { showToast } = useToast();
+
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement registration logic
-    console.log('Registration attempt:', formData);
+    setLoading(true);
+    
+    // Vérifier que les mots de passe correspondent
+    if (formData.password !== formData.confirmPassword) {
+      showToast({ type: 'error', message: 'Les mots de passe ne correspondent pas.' });
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // Appel à l'API d'inscription via le service auth
+      // Transformer les noms des champs du formulaire pour qu'ils correspondent au backend
+      await registerApi(
+        formData.email, 
+        formData.password, 
+        formData.fullName, // full_name dans le backend
+        formData.companyName // company_name dans le backend
+      );
+      
+      // Afficher un message de succès
+      showToast({ 
+        type: 'success', 
+        message: 'Compte créé avec succès. Vous allez être redirigé vers la page de connexion.' 
+      });
+      
+      // Rediriger vers la page de connexion après un court délai
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+      
+    } catch (err: any) {
+      // Gestion des erreurs
+      const errorMessage = err?.response?.data?.detail || "Erreur lors de l'inscription.";
+      showToast({ type: 'error', message: errorMessage });
+    }
+    
+    setLoading(false);
   };
+
 
   return (
     <>
@@ -161,9 +202,11 @@ const RegisterPage: React.FC = () => {
                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
                     transform transition-all duration-200
                     shadow-lg hover:shadow-xl
-                    dark:focus:ring-offset-gray-900"
+                    dark:focus:ring-offset-gray-900
+                    disabled:opacity-70 disabled:cursor-not-allowed"
+                  disabled={loading}
                 >
-                  Créer mon compte
+                  {loading ? 'Création en cours...' : "S'inscrire"}
                 </motion.button>
               </motion.form>
             </div>

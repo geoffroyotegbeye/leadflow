@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  FiCode, 
   FiCpu, 
   FiGithub, 
   FiGrid, 
@@ -11,22 +10,17 @@ import {
   FiUsers, 
   FiZap, 
   FiGlobe,
-  FiMoon,
-  FiSun,
   FiChevronRight
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import * as THREE from 'three';
 
 const LandingPage = () => {
-  const [darkMode, setDarkMode] = useState(false);
+  
   const [isScrolled, setIsScrolled] = useState(false);
 
-  // Toggle dark mode
+  // Gestion du scroll uniquement
   useEffect(() => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(prefersDark);
-    
     const handleScroll = () => {
       if (window.scrollY > 50) {
         setIsScrolled(true);
@@ -65,9 +59,9 @@ const LandingPage = () => {
     // Create animated shapes
     const geometry = new THREE.TorusKnotGeometry(1, 0.3, 128, 32);
     const material = new THREE.MeshStandardMaterial({
-      color: darkMode ? 0x3b82f6 : 0x3b82f6,
+      color: 0x3b82f6,
       wireframe: true,
-      emissive: darkMode ? 0x3b82f6 : 0x3b82f6,
+      emissive: 0x3b82f6,
       emissiveIntensity: 0.2,
     });
     const torusKnot = new THREE.Mesh(geometry, material);
@@ -111,7 +105,7 @@ const LandingPage = () => {
       geometry.dispose();
       material.dispose();
     };
-  }, [darkMode]);
+  }, []);
 
   const fadeInUp = {
     hidden: { opacity: 0, y: 20 },
@@ -129,66 +123,36 @@ const LandingPage = () => {
   };
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-white'}`}>
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Navigation */}
-      <nav className={`fixed w-full z-50 transition-all duration-300 ${
-        isScrolled 
-          ? `${darkMode ? 'bg-gray-900/90 backdrop-blur-md' : 'bg-white/90 backdrop-blur-md shadow-sm'}` 
-          : 'bg-transparent'
-      }`}>
+      <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm' : 'bg-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${darkMode ? 'bg-blue-600' : 'bg-blue-600'}`}>
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-blue-600">
                   <FiMessageCircle className="text-white text-2xl" />
                 </div>
-                <span className={`ml-3 text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  leadflow<span className="text-blue-600">OS</span>
+                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                  LeadFlow
                 </span>
               </Link>
             </div>
-            
             <div className="hidden md:flex items-center space-x-8">
-              <Link to="/features" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}>
+              <Link to="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
                 Fonctionnalités
               </Link>
-              <Link to="/documentation" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}>
+              <Link to="/documentation" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
                 Documentation
               </Link>
-              <Link to="/community" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}>
-                Communauté
-              </Link>
-              <a 
-                href="https://github.com/leadflow/leadflow-os" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200 flex items-center`}
-              >
-                <FiGithub className="mr-2" /> GitHub
-              </a>
             </div>
-            
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className={`p-2 rounded-full ${darkMode ? 'bg-gray-800 text-yellow-400' : 'bg-gray-100 text-gray-800'} transition-colors duration-200`}
-                aria-label="Toggle dark mode"
-              >
-                {darkMode ? <FiSun className="text-lg" /> : <FiMoon className="text-lg" />}
-              </button>
-              
               <Link
                 to="/login"
-                className={`hidden md:inline-block px-4 py-2 rounded-lg border ${
-                  darkMode 
-                    ? 'border-gray-700 text-gray-300 hover:bg-gray-800' 
-                    : 'border-gray-200 text-gray-700 hover:bg-gray-100'
-                } transition-colors duration-200`}
+                className="hidden md:inline-block px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 hover:bg-gray-100 dark:bg-gray-800 transition-colors duration-200"
               >
                 Se connecter
               </Link>
-              
               <Link
                 to="/register"
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200"
@@ -217,20 +181,16 @@ const LandingPage = () => {
             variants={staggerContainer}
           >
             <motion.div variants={fadeInUp}>
-              <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium mb-6 ${
-                darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'
-              }`}>
+              <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium mb-6 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200`}>
                 <span className="flex items-center">
-                  <FiGithub className="mr-2" /> 100% Open Source
+                  <FiGithub className="mr-2" /> Plateforme professionnelle de création de chatbots
                 </span>
               </span>
             </motion.div>
             
             <motion.h1 
               variants={fadeInUp}
-              className={`text-4xl sm:text-6xl font-bold mb-6 tracking-tight ${
-                darkMode ? 'text-white' : 'text-gray-900'
-              }`}
+              className={`text-4xl sm:text-6xl font-bold mb-6 tracking-tight text-gray-900 dark:text-white`}
             >
               Créez des chatbots <span className="text-blue-600">sans code</span><br />
               qui convertissent <span className="relative inline-block">
@@ -243,12 +203,10 @@ const LandingPage = () => {
             
             <motion.p 
               variants={fadeInUp}
-              className={`text-xl mb-8 max-w-2xl mx-auto ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}
+              className={`text-xl mb-8 max-w-2xl mx-auto text-gray-600 dark:text-gray-300`}
             >
               Automatisez vos conversations, qualifiez vos leads et boostez vos conversions avec 
-              une plateforme open source et entièrement personnalisable — sans écrire une seule ligne de code.
+              une plateforme flexible et entièrement personnalisable — sans écrire une seule ligne de code.
             </motion.p>
             
             <motion.div 
@@ -261,23 +219,12 @@ const LandingPage = () => {
               >
                 Commencer gratuitement <FiChevronRight className="ml-2" />
               </Link>
-              <a
-                href="https://github.com/leadflow/leadflow-os"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`px-8 py-4 rounded-lg flex items-center justify-center ${
-                  darkMode 
-                    ? 'bg-gray-800 text-white hover:bg-gray-700' 
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                } transition-colors duration-200`}
-              >
-                <FiGithub className="mr-2" /> Star on GitHub
-              </a>
+              
             </motion.div>
             
             <motion.div 
               variants={fadeInUp}
-              className={`mt-8 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              className={`mt-8 text-sm text-gray-500 dark:text-gray-400`}
             >
               <div className="flex items-center justify-center gap-1">
                 <FiStar className="text-yellow-500" />
@@ -286,7 +233,7 @@ const LandingPage = () => {
                 <FiStar className="text-yellow-500" />
                 <FiStar className="text-yellow-500" />
               </div>
-              <p className="mt-2">Rejoint par plus de 2,000+ développeurs et marketeurs</p>
+              
             </motion.div>
           </motion.div>
         </div>
@@ -298,37 +245,34 @@ const LandingPage = () => {
           transition={{ delay: 0.4, duration: 0.8 }}
           className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8"
         >
-          <div className={`rounded-xl overflow-hidden shadow-2xl border ${
-            darkMode ? 'border-gray-800' : 'border-gray-200'
-          }`}>
+          <div className={`rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900`}>
             <img 
-              src="/api/placeholder/1200/600" 
-              alt="leadflow Interface" 
+              src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80" 
+              alt="LeadFlow - Illustration principale" 
               className="w-full object-cover"
             />
-            <div className={`absolute inset-0 pointer-events-none ${
-              darkMode ? 'bg-gradient-to-t from-gray-900 to-transparent opacity-70' : 'bg-gradient-to-t from-white to-transparent opacity-30'
-            }`}></div>
+            <div className={`absolute inset-0 pointer-events-none bg-gradient-to-t from-white to-transparent opacity-30`}></div>
           </div>
         </motion.div>
         
         {/* Logos Section */}
-        <div className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`py-16 bg-gray-50 dark:bg-gray-800`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p className={`text-center text-sm font-medium mb-8 ${
-              darkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>
+            <p className={`text-center text-sm font-medium mb-8 text-gray-500 dark:text-gray-400`}>
               UTILISÉ ET SUPPORTÉ PAR DES ENTREPRISES DU MONDE ENTIER
             </p>
             
             <div className="grid grid-cols-2 md:grid-cols-6 gap-8 items-center justify-items-center">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className={`h-12 w-24 rounded-md ${
-                  darkMode ? 'bg-gray-800' : 'bg-gray-200'
-                } flex items-center justify-center`}>
-                  <span className={`text-sm font-medium ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>LOGO {i}</span>
+                <div key={i} className={`h-12 w-24 rounded-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center`}>
+                  <img src={[
+  "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=200&q=80",
+  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=200&q=80",
+  "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?auto=format&fit=crop&w=200&q=80",
+  "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=200&q=80",
+  "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=200&q=80",
+  "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=200&q=80"
+][i-1]} alt={`Logo partenaire ${i}`} className="max-h-10 object-contain rounded" />
                 </div>
               ))}
             </div>
@@ -337,17 +281,13 @@ const LandingPage = () => {
       </div>
 
       {/* Features Section */}
-      <div className={`py-24 ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className="py-24 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className={`text-3xl font-bold mb-4 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-3xl font-bold mb-4 text-gray-900 dark:text-white`}>
               Toutes les fonctionnalités dont vous avez besoin
             </h2>
-            <p className={`text-xl max-w-3xl mx-auto ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+            <p className={`text-xl max-w-3xl mx-auto text-gray-600 dark:text-gray-300`}>
               Créez des expériences conversationnelles qui engagent vos visiteurs et convertissent plus de leads.
             </p>
           </div>
@@ -391,25 +331,15 @@ const LandingPage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className={`p-6 rounded-xl ${
-                  darkMode 
-                    ? 'bg-gray-800 border border-gray-700' 
-                    : 'bg-white border border-gray-100 shadow-sm'
-                }`}
+                className={`p-6 rounded-xl overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm`}
               >
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-                  darkMode ? 'bg-gray-700' : 'bg-blue-50'
-                }`}>
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-blue-50 dark:bg-blue-900">
                   {feature.icon}
                 </div>
-                <h3 className={`text-xl font-semibold mb-3 ${
-                  darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
+                <h3 className={`text-xl font-semibold mb-3 text-gray-900 dark:text-white`}>
                   {feature.title}
                 </h3>
-                <p className={`${
-                  darkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                <p className={`text-gray-600 dark:text-gray-300`}>
                   {feature.description}
                 </p>
               </motion.div>
@@ -419,17 +349,13 @@ const LandingPage = () => {
       </div>
 
       {/* How It Works */}
-      <div className={`py-24 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+      <div className={`py-24 bg-gray-50 dark:bg-gray-900`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className={`text-3xl font-bold mb-4 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-3xl font-bold mb-4 text-gray-900 dark:text-white`}>
               Comment ça marche
             </h2>
-            <p className={`text-xl max-w-3xl mx-auto ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+            <p className={`text-xl max-w-3xl mx-auto text-gray-600 dark:text-gray-300`}>
               Créez et déployez un chatbot performant en quelques minutes, sans connaissance technique.
             </p>
           </div>
@@ -460,27 +386,19 @@ const LandingPage = () => {
                 viewport={{ once: true }}
                 className="relative"
               >
-                <div className={`text-5xl font-bold mb-4 ${
-                  darkMode ? 'text-blue-500' : 'text-blue-600'
-                }`}>
+                <div className={`text-5xl font-bold mb-4 text-blue-600`}>
                   {step.step}
                 </div>
-                <h3 className={`text-xl font-semibold mb-3 ${
-                  darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
+                <h3 className={`text-xl font-semibold mb-3 text-gray-900 dark:text-white`}>
                   {step.title}
                 </h3>
-                <p className={`${
-                  darkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                <p className={`text-gray-600 dark:text-gray-300`}>
                   {step.description}
                 </p>
                 
                 {index < 2 && (
                   <div className="hidden md:block absolute top-8 right-0 transform translate-x-1/2">
-                    <FiChevronRight className={`text-4xl ${
-                      darkMode ? 'text-gray-700' : 'text-gray-300'
-                    }`} />
+                    <FiChevronRight className={`text-4xl text-gray-300`} />
                   </div>
                 )}
               </motion.div>
@@ -490,17 +408,13 @@ const LandingPage = () => {
       </div>
 
       {/* Use Cases */}
-      <div className={`py-24 ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className="py-24 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className={`text-3xl font-bold mb-4 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-3xl font-bold mb-4 text-gray-900 dark:text-white`}>
               Cas d'utilisation
             </h2>
-            <p className={`text-xl max-w-3xl mx-auto ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+            <p className={`text-xl max-w-3xl mx-auto text-gray-600 dark:text-gray-300`}>
               leadflow s'adapte à tous vos besoins conversationnels
             </p>
           </div>
@@ -510,22 +424,22 @@ const LandingPage = () => {
               {
                 title: "Lead Generation",
                 description: "Qualifiez vos prospects et collectez des informations pertinentes pour votre équipe commerciale.",
-                image: "/api/placeholder/500/300"
+                image: "https://images.unsplash.com/photo-1515168833906-d2a3b82b302c?auto=format&fit=crop&w=500&q=80"
               },
               {
                 title: "Support Client",
                 description: "Répondez aux questions fréquentes et réduisez la charge de votre équipe support.",
-                image: "/api/placeholder/500/300"
+                image: "https://images.unsplash.com/photo-1515168833906-d2a3b82b302c?auto=format&fit=crop&w=500&q=80"
               },
               {
                 title: "Réservations & RDV",
                 description: "Permettez à vos clients de prendre rendez-vous directement via le chatbot.",
-                image: "/api/placeholder/500/300"
+                image: "https://images.unsplash.com/photo-1515168833906-d2a3b82b302c?auto=format&fit=crop&w=500&q=80"
               },
               {
                 title: "Formulaires Interactifs",
                 description: "Transformez vos formulaires ennuyeux en conversations engageantes pour augmenter le taux de complétion.",
-                image: "/api/placeholder/500/300"
+                image: "https://images.unsplash.com/photo-1515168833906-d2a3b82b302c?auto=format&fit=crop&w=500&q=80"
               }
             ].map((useCase, index) => (
               <motion.div
@@ -534,22 +448,14 @@ const LandingPage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className={`p-6 rounded-xl overflow-hidden ${
-                  darkMode 
-                    ? 'bg-gray-800 border border-gray-700' 
-                    : 'bg-white border border-gray-100 shadow-sm'
-                }`}
+                className={`p-6 rounded-xl overflow-hidden bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm`}
               >
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="md:w-1/2">
-                    <h3 className={`text-xl font-semibold mb-3 ${
-                      darkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
+                    <h3 className={`text-xl font-semibold mb-3 text-gray-900 dark:text-white`}>
                       {useCase.title}
                     </h3>
-                    <p className={`mb-4 ${
-                      darkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
+                    <p className={`mb-4 text-gray-600 dark:text-gray-300`}>
                       {useCase.description}
                     </p>
                     <Link 
@@ -574,7 +480,7 @@ const LandingPage = () => {
       </div>
 
       {/* Open Source Section */}
-      <div className={`py-24 ${darkMode ? 'bg-gray-800' : 'bg-blue-50'}`}>
+      <div className={`py-24 bg-blue-50 dark:bg-blue-950`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -583,63 +489,27 @@ const LandingPage = () => {
               transition={{ duration: 0.5 }}
               viewport={{ once: true }}
             >
-              <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 ${
-                darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-800'
-              }`}>
+              <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium mb-4 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200`}>
                 <span className="flex items-center">
-                  <FiGithub className="mr-2" /> Open Source
+                  <FiZap className="mr-2" /> Sécurité & Personnalisation
                 </span>
               </span>
-              <h2 className={`text-3xl font-bold mb-6 ${
-                darkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-                Un projet 100% Open Source et communautaire
+              <h2 className={`text-3xl font-bold mb-6 text-gray-900 dark:text-white`}>
+                Une plateforme robuste, sécurisée et flexible
               </h2>
-              <p className={`text-lg mb-6 ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                leadflow est un projet open source maintenu par une communauté active de développeurs et de marketeurs. 
-                Vous pouvez l'utiliser gratuitement, le modifier selon vos besoins et contribuer à son amélioration.
+              <p className={`text-lg mb-6 text-gray-600 dark:text-gray-300`}>
+                leadflow répond aux exigences des entreprises modernes : sécurité des données, personnalisation avancée et intégration facile dans votre écosystème digital. Profitez d’une solution fiable, évolutive et adaptée à vos besoins métier.
               </p>
               
               <div className="grid grid-cols-2 gap-6 mb-8">
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-gray-700' : 'bg-white shadow-sm'
-                }`}>
-                  <div className="font-bold text-2xl text-blue-600 mb-1">2,500+</div>
-                  <div className={`${
-                    darkMode ? 'text-gray-300' : 'text-gray-600'
-                  }`}>Stars GitHub</div>
+                <div className={`p-4 rounded-lg bg-white dark:bg-gray-900 shadow-sm`}>
+                  <div className="font-bold text-2xl text-blue-600 mb-1">+150</div>
+                  <div className={`text-gray-600 dark:text-gray-300`}>Entreprises satisfaites</div>
                 </div>
-                <div className={`p-4 rounded-lg ${
-                  darkMode ? 'bg-gray-700' : 'bg-white shadow-sm'
-                }`}>
-                  <div className="font-bold text-2xl text-blue-600 mb-1">150+</div>
-                  <div className={`${
-                    darkMode ? 'text-gray-300' : 'text-gray-600'
-                  }`}>Contributeurs</div>
+                <div className={`p-4 rounded-lg bg-white dark:bg-gray-900 shadow-sm`}>
+                  <div className="font-bold text-2xl text-blue-600 mb-1">+10 000</div>
+                  <div className={`text-gray-600 dark:text-gray-300`}>Conversations automatisées</div>
                 </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a
-                  href="https://github.com/leadflow/leadflow-os"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center"
-                >
-                  <FiGithub className="mr-2" /> Star on GitHub
-                </a>
-                <Link
-                  to="/contribute"
-                  className={`px-6 py-3 rounded-lg flex items-center justify-center ${
-                    darkMode 
-                      ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                      : 'bg-white text-gray-900 hover:bg-gray-100'
-                  } transition-colors duration-200`}
-                >
-                  <FiCode className="mr-2" /> Comment contribuer
-                </Link>
               </div>
             </motion.div>
             
@@ -648,34 +518,28 @@ const LandingPage = () => {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
               viewport={{ once: true }}
-              className={`rounded-xl overflow-hidden ${
-                darkMode ? 'bg-gray-900' : 'bg-white'
-              } p-4 border ${
-                darkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}
+              className={`rounded-xl overflow-hidden bg-white dark:bg-gray-900 p-4 border border-gray-100 dark:border-gray-800 shadow-sm`}
             >
-              <div className={`flex items-center mb-4 p-2 rounded-lg ${
-                darkMode ? 'bg-gray-800' : 'bg-gray-100'
-              }`}>
+              <div className={`flex items-center mb-4 p-2 rounded-lg bg-gray-100 dark:bg-gray-800`}>
                 <div className="flex space-x-2">
                   <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
                     <FiMessageCircle className="text-white text-2xl" />
                   </div>
                   <div>
-                    <div className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>leadflowOS</div>
-                    <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Open Source Project</div>
+                    <div className={`font-semibold text-gray-900 dark:text-white`}>LeadFlow</div>
+                    
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-white shadow-sm'}`}>
+                <div className={`p-4 rounded-lg bg-white dark:bg-gray-900 shadow-sm`}>
                   <div className="font-bold text-2xl text-blue-600 mb-1">100+</div>
-                  <div className={`${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Community Events</div>
+                  <div className={`text-gray-600 dark:text-gray-300`}>Community Events</div>
                 </div>
-                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-white shadow-sm'}`}>
+                <div className={`p-4 rounded-lg bg-white dark:bg-gray-900 shadow-sm`}>
                   <div className="font-bold text-2xl text-blue-600 mb-1">50+</div>
-                  <div className={`${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Integrations</div>
+                  <div className={`text-gray-600 dark:text-gray-300`}>Integrations</div>
                 </div>
               </div>
             </motion.div>
@@ -684,41 +548,32 @@ const LandingPage = () => {
       </div>
 
       {/* Footer */}
-      <footer className={`py-12 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <footer className={`py-12 bg-gray-100 dark:bg-gray-900`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-center md:text-left mb-4 md:mb-0">
               <Link to="/" className="flex items-center">
-                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${darkMode ? 'bg-blue-600' : 'bg-blue-600'}`}>
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center bg-blue-600`}>
                   <FiMessageCircle className="text-white text-2xl" />
                 </div>
-                <span className={`ml-3 text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  leadflow<span className="text-blue-600">OS</span>
+                <span className={`ml-3 text-xl font-bold text-gray-900 dark:text-white`}>
+                  LeadFlow
                 </span>
               </Link>
             </div>
             <div className="flex space-x-6">
-              <Link to="/features" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}>
+              <Link to="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
                 Fonctionnalités
               </Link>
-              <Link to="/documentation" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}>
+              <Link to="/documentation" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
                 Documentation
               </Link>
-              <Link to="/community" className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}>
-                Communauté
-              </Link>
-              <a
-                href="https://github.com/leadflow/leadflow-os"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200 flex items-center`}
-              >
-                <FiGithub className="mr-2" /> GitHub
-              </a>
+              
+              
             </div>
           </div>
-          <div className="mt-8 border-t border-gray-200 pt-8">
-            <p className={`text-center text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="mt-8 border-t border-gray-200 dark:border-gray-700 pt-8">
+            <p className="text-center text-sm text-gray-600 dark:text-gray-300">
               &copy; {new Date().getFullYear()} leadflowOS. All rights reserved.
             </p>
           </div>
