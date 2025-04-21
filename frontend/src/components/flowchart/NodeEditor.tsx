@@ -155,6 +155,31 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
                         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         placeholder={`Option ${optionIndex + 1}`}
                       />
+                      {/* Upload image pour l'option */}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id={`option-image-upload-${element.id}-${optionIndex}`}
+                        onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const file = e.target.files[0];
+                            const imageUrl = await MediaService.uploadMedia(file, 'image');
+                            const newOptions = [...(element.options || [])];
+                            newOptions[optionIndex] = {
+                              ...newOptions[optionIndex],
+                              imageUrl
+                            };
+                            handleElementChange(element.id, { options: newOptions });
+                          }
+                        }}
+                      />
+                      <label htmlFor={`option-image-upload-${element.id}-${optionIndex}`} className="cursor-pointer inline-flex items-center px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        {option.imageUrl ? 'Changer image' : 'Image'}
+                      </label>
                       <button
                         type="button"
                         onClick={() => {
@@ -169,6 +194,27 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
                         <XMarkIcon className="h-5 w-5 dark:text-white" />
                       </button>
                     </div>
+                    {/* Aperçu de l'image de l'option avec bouton de suppression */}
+                    {option.imageUrl && (
+                      <div className="ml-2 mb-2 relative group">
+                        <img src={option.imageUrl} alt="aperçu option" className="h-12 rounded border border-gray-200 dark:border-gray-600" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newOptions = [...(element.options || [])];
+                            newOptions[optionIndex] = {
+                              ...newOptions[optionIndex],
+                              imageUrl: undefined // Supprimer l'imageUrl
+                            };
+                            handleElementChange(element.id, { options: newOptions });
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Supprimer l'image"
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
                   </Fragment>
                 ))}
                 <button
