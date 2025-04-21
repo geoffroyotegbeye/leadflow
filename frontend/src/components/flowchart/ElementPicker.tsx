@@ -88,6 +88,7 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
               >
                 <ChatBubbleLeftRightIcon className="h-7 w-7 mb-1 text-blue-500" />
                 <span className="text-xs font-medium">Message</span>
+                <span className="text-[11px] text-gray-500 mt-1">Envoyer une information</span>
               </button>
               <button
                 className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
@@ -95,6 +96,7 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
               >
                 <QuestionMarkCircleIcon className="h-7 w-7 mb-1 text-green-500" />
                 <span className="text-xs font-medium">Question</span>
+                <span className="text-[11px] text-gray-500 mt-1">Choix parmi des options</span>
               </button>
               <button
                 className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
@@ -102,6 +104,7 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
               >
                 <EnvelopeIcon className="h-7 w-7 mb-1 text-yellow-500" />
                 <span className="text-xs font-medium">Entrée</span>
+                <span className="text-[11px] text-gray-500 mt-1">Demande une réponse simple</span>
               </button>
               <button
                 className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
@@ -109,6 +112,39 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
               >
                 <AdjustmentsHorizontalIcon className="h-7 w-7 mb-1 text-purple-500" />
                 <span className="text-xs font-medium">Formulaire</span>
+                <span className="text-[11px] text-gray-500 mt-1">Plusieurs champs à remplir</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('image')}
+              >
+                <DevicePhoneMobileIcon className="h-7 w-7 mb-1 text-pink-500" />
+                <span className="text-xs font-medium">Image</span>
+                <span className="text-[11px] text-gray-500 mt-1">Afficher une image</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('video')}
+              >
+                <PlayIcon className="h-7 w-7 mb-1 text-red-500" />
+                <span className="text-xs font-medium">Vidéo</span>
+                <span className="text-[11px] text-gray-500 mt-1">Partager une vidéo</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('audio')}
+              >
+                <BellIcon className="h-7 w-7 mb-1 text-indigo-500" />
+                <span className="text-xs font-medium">Audio</span>
+                <span className="text-[11px] text-gray-500 mt-1">Envoyer un son</span>
+              </button>
+              <button
+                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
+                onClick={() => handleSelectElement('file')}
+              >
+                <CircleStackIcon className="h-7 w-7 mb-1 text-gray-600" />
+                <span className="text-xs font-medium">Fichier</span>
+                <span className="text-[11px] text-gray-500 mt-1">Partager un fichier</span>
               </button>
             </div>
 

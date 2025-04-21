@@ -2,7 +2,11 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+import os
+
 from app.api.routes import assistant_router
+from app.api.media import media_router
 from app.db.mongodb import connect_to_mongo, close_mongo_connection
 import logging
 import time
@@ -65,6 +69,12 @@ async def log_requests(request: Request, call_next):
 
 # Inclure les routes de l'API
 app.include_router(assistant_router, prefix="/api", tags=["assistants"])
+app.include_router(media_router, prefix="/api", tags=["media"])
+
+# Monter le dossier statique pour servir les fichiers média
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "static")
+os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Événements de démarrage et d'arrêt pour la connexion à MongoDB
 @app.on_event("startup")

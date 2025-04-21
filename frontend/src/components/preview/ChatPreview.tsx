@@ -327,16 +327,21 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         isTyping: true,
         visible: false
       };
+      
+      // Stocker les données de l'élément dans le message
+      newMessage.elementData = element;
+      
       // Si c'est une question avec des options, ajouter les options au message
       if (element.type === 'question' && element.options && element.options.length > 0) {
         newMessage.options = element.options.map((opt: any) => opt.text);
-        newMessage.elementData = element;
       }
-      // Si c'est une entrée libre (input), ajouter les données de l'élément
+      // Si c'est une entrée libre (input), logger l'élément
       else if (element.type === 'input') {
-        // Stocker les données complètes de l'élément pour pouvoir accéder à inputType
-        newMessage.elementData = element;
         console.log('Élément input détecté:', element);
+      }
+      // Si c'est un média (image, vidéo, audio, fichier), stocker l'URL
+      else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
+        console.log(`Élément ${element.type} détecté:`, element);
       }
       setMessages(prev => [...prev, newMessage]);
       // Après un délai, marquer le message comme terminé (plus en train d'être tapé)
@@ -582,6 +587,61 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                   </div>
                                 );
                               })}
+                            </div>
+                          ) : message.type === 'image' && message.elementData?.mediaUrl ? (
+                            <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
+                              <div className="relative w-full">
+                                <img 
+                                  src={message.elementData.mediaUrl} 
+                                  alt={message.content || 'Image'} 
+                                  className="max-w-full rounded-t-lg max-h-64 object-contain mx-auto p-2" 
+                                  onError={(e) => {
+                                    console.error("Erreur de chargement d'image:", message.elementData.mediaUrl);
+                                    e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+non+disponible';
+                                  }}
+                                />
+                              </div>
+                              {message.content && <p className="p-3 text-sm border-t border-gray-100 dark:border-gray-700">{message.content}</p>}
+                            </div>
+                          ) : message.type === 'video' && message.elementData?.mediaUrl ? (
+                            <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
+                              <div className="relative w-full">
+                                <video 
+                                  src={message.elementData.mediaUrl} 
+                                  controls 
+                                  className="max-w-full rounded-t-lg max-h-64 mx-auto p-2" 
+                                  onError={(e) => {
+                                    console.error("Erreur de chargement vidéo:", message.elementData.mediaUrl);
+                                  }}
+                                />
+                              </div>
+                              {message.content && <p className="p-3 text-sm border-t border-gray-100 dark:border-gray-700">{message.content}</p>}
+                            </div>
+                          ) : message.type === 'audio' && message.elementData?.mediaUrl ? (
+                            <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm p-3">
+                              <audio 
+                                src={message.elementData.mediaUrl} 
+                                controls 
+                                className="w-full" 
+                                onError={(e) => {
+                                  console.error("Erreur de chargement audio:", message.elementData.mediaUrl);
+                                }}
+                              />
+                              {message.content && <p className="mt-2 text-sm">{message.content}</p>}
+                            </div>
+                          ) : message.type === 'file' && message.elementData?.fileUrl ? (
+                            <div className="media-container">
+                              <a 
+                                href={message.elementData.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg my-2 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                </svg>
+                                {message.content || 'Télécharger le fichier'}
+                              </a>
                             </div>
                           ) : (
                             <p>{message.content}</p>

@@ -5,6 +5,7 @@ import './NodeEditor.css';
 import * as HeroIcons from '@heroicons/react/24/outline';
 import { NodeData, ElementType, ELEMENT_TYPES, NODE_TYPES } from './NodeTypes';
 import ElementPicker from './ElementPicker';
+import MediaService from '../../services/mediaService';
 
 interface NodeEditorProps {
   isOpen: boolean;
@@ -62,6 +63,24 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
         ...formData,
         elements: formData.elements.filter(element => element.id !== elementId)
       });
+    }
+  };
+
+  // Fonction d'upload de fichier
+  const handleMediaUpload = async (elementId: string, file: File, type: string) => {
+    try {
+      // Utilise le service dédié pour l'upload de média
+      const path = await MediaService.uploadMedia(file, type);
+      
+      // Met à jour l'élément avec le chemin retourné
+      if (['image', 'video', 'audio'].includes(type)) {
+        handleElementChange(elementId, { mediaUrl: path });
+      } else if (type === 'file') {
+        handleElementChange(elementId, { fileUrl: path });
+      }
+    } catch (e) {
+      console.error("Erreur d'upload:", e);
+      alert("Erreur lors de l'upload du fichier");
     }
   };
 
@@ -199,6 +218,70 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
               <option value="PUT">PUT</option>
               <option value="DELETE">DELETE</option>
             </select>
+          </div>
+        );
+
+      case 'image':
+      case 'video':
+      case 'audio':
+      case 'file':
+        return (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              {element.type === 'image' && "Image à afficher"}
+              {element.type === 'video' && "Vidéo à afficher"}
+              {element.type === 'audio' && "Fichier audio à jouer"}
+              {element.type === 'file' && "Fichier à partager"}
+            </label>
+            <input
+              type="file"
+              accept={
+                element.type === 'image' ? 'image/*'
+                : element.type === 'video' ? 'video/*'
+                : element.type === 'audio' ? 'audio/*'
+                : '*/*'
+              }
+              onChange={e => {
+                if (e.target.files && e.target.files[0]) {
+                  handleMediaUpload(element.id, e.target.files[0], element.type);
+                }
+              }}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+            {/* Aperçu du média si possible */}
+            {element.mediaUrl && element.type === 'image' && (
+              <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800">
+                <img src={element.mediaUrl} alt="aperçu" className="max-h-32 rounded mx-auto" />
+                <p className="text-xs text-gray-500 mt-1 text-center truncate">{element.mediaUrl.split('/').pop()}</p>
+              </div>
+            )}
+            {element.mediaUrl && element.type === 'video' && (
+              <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800">
+                <video src={element.mediaUrl} controls className="max-h-32 rounded mx-auto" />
+                <p className="text-xs text-gray-500 mt-1 text-center truncate">{element.mediaUrl.split('/').pop()}</p>
+              </div>
+            )}
+            {element.mediaUrl && element.type === 'audio' && (
+              <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800">
+                <audio src={element.mediaUrl} controls className="w-full" />
+                <p className="text-xs text-gray-500 mt-1 text-center truncate">{element.mediaUrl.split('/').pop()}</p>
+              </div>
+            )}
+            {element.fileUrl && element.type === 'file' && (
+              <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800">
+                <a 
+                  href={element.fileUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center justify-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  </svg>
+                  <span className="truncate">{element.fileUrl.split('/').pop()}</span>
+                </a>
+              </div>
+            )}
           </div>
         );
 
