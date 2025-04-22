@@ -5,11 +5,52 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
+  margin-top: 10px;
 }
 @media (min-width: 480px) {
   .options-container {
     grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* Style pour les options avec images */
+.option-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dark .option-button {
+  background-color: var(--dark-secondary-bg);
+  border-color: var(--dark-border);
+  color: var(--dark-text);
+}
+
+.option-button img {
+  height: 48px;
+  width: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.option-button.selected {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.3);
+}
+
+.option-button span {
+  font-size: 0.8rem;
+  text-align: center;
+  word-break: break-word;
 }
 
 :root {
@@ -387,24 +428,24 @@ body {
 
 /* Styles pour les médias */
 .media-container {
-  background-color: white;
+  margin: 10px 0;
+  max-width: 100%;
   border-radius: 8px;
   overflow: hidden;
+  background-color: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin: 5px 0;
-  transition: background-color 0.3s;
 }
 
 .dark .media-container {
   background-color: var(--dark-secondary-bg);
 }
 
-.media-container img,
-.media-container video {
+.media-container img, .media-container video {
   max-width: 100%;
-  max-height: 300px;
-  object-fit: contain;
+  max-height: 256px;
+  height: auto;
   display: block;
+  object-fit: contain;
   margin: 0 auto;
   padding: 10px;
 }
@@ -454,19 +495,39 @@ body {
 .form-field textarea,
 .form-field select {
   width: 100%;
-  padding: 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 5px;
+  border-radius: 4px;
   font-size: 0.9rem;
-  transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+  background-color: white;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .dark .form-field input,
 .dark .form-field textarea,
 .dark .form-field select {
+  background-color: var(--dark-secondary-bg);
   border-color: var(--dark-border);
-  background-color: var(--dark-bg);
   color: var(--dark-text);
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+.dark .form-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+.form-select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.3);
 }
 
 .form-field input:focus,

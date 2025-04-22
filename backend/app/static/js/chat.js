@@ -131,11 +131,317 @@ document.addEventListener('DOMContentLoaded', () => {
   // Ajouter un message à la conversation
   const addMessage = (message) => {
     state.messages.push(message);
-    updateUI();
+    
+    // Au lieu de régénérer toute la conversation, ajouter seulement le nouveau message
+    if (!state.isLoading && state.messages.length > 0) {
+      appendMessageToUI(message, state.messages.length - 1);
+    } else {
+      // Cas particulier: premier message ou chargement, utiliser updateUI complet
+      updateUI();
+    }
+    
     scrollToBottom();
   };
   
-  // Mettre à jour l'interface utilisateur
+  // Générer le HTML pour un seul message et l'ajouter au DOM
+  const appendMessageToUI = (message, idx) => {
+    // Déterminer si l'entête Bot doit être affichée
+    let showBotHeader = false;
+    if (message.sender === 'bot') {
+      if (idx === 0 || state.messages[idx - 1].sender !== 'bot') {
+        showBotHeader = true;
+      }
+    }
+    
+    const messageClass = message.sender === 'user' ? 'user-message' : 'assistant-message';
+    
+    // Créer un élément div pour le message
+    const messageEl = document.createElement('div');
+    messageEl.className = `message ${messageClass}`;
+    messageEl.dataset.messageId = message.id; // Stocker l'ID pour référence future
+    
+    // Générer le HTML pour le contenu du message
+    let messageHTML = '';
+    
+    // Entête pour les messages du bot
+    if (message.sender === 'bot' && showBotHeader) {
+      messageHTML += `
+        <div class="bot-header">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+            <line x1="9" y1="9" x2="9.01" y2="9"></line>
+            <line x1="15" y1="9" x2="15.01" y2="9"></line>
+          </svg>
+          <span>Assistant</span>
+        </div>
+      `;
+    }
+    
+    // Générer le contenu du message selon son type
+    if (message.isTyping) {
+      messageHTML += `
+        <div class="typing-indicator">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      `;
+    } else {
+      // Ajouter le contenu selon le type de message
+      // (Le reste du code de génération HTML pour les différents types de messages reste identique)
+      // On utilisera la même logique que dans updateUI
+      
+      // Contenu du message selon son type
+      if (message.type === 'image' && message.elementData?.mediaUrl) {
+        messageHTML += generateMediaHTML(message, 'image');
+      } else if (message.type === 'video' && message.elementData?.mediaUrl) {
+        messageHTML += generateMediaHTML(message, 'video');
+      } else if (message.type === 'audio' && message.elementData?.mediaUrl) {
+        messageHTML += generateMediaHTML(message, 'audio');
+      } else if (message.type === 'form' && message.content) {
+        messageHTML += generateFormResponseHTML(message);
+      } else {
+        messageHTML += `<span>${message.content}</span>`;
+      }
+      
+      // Ajouter les options si présentes
+      if (message.sender === 'bot' && message.elementData?.options && message.elementData.options.length > 0) {
+        messageHTML += generateOptionsHTML(message);
+      }
+      
+      // Ajouter le formulaire si c'est un élément de type form
+      if (message.sender === 'bot' && message.type === 'form' && 
+          message.elementData?.formFields && message.elementData.formFields.length > 0) {
+        messageHTML += generateFormHTML(message);
+      }
+      
+      // Ajouter le champ de saisie si c'est un élément de type input
+      if (message.sender === 'bot' && message.type === 'input') {
+        messageHTML += generateInputHTML(message);
+      }
+    }
+    
+    // Définir le HTML du message
+    messageEl.innerHTML = messageHTML;
+    
+    // Ajouter le message au conteneur
+    chatMessages.appendChild(messageEl);
+    
+    // Attacher les écouteurs d'événements aux éléments du nouveau message
+    attachEventListenersToMessage(messageEl);
+  };
+  
+  // Générer le HTML pour les réponses de formulaire
+  const generateFormResponseHTML = (message) => {
+    // Afficher simplement le contenu du message pour les réponses de formulaire
+    return `<div class="form-response">${message.content}</div>`;
+  };
+  
+  // Générer le HTML pour les formulaires
+  const generateFormHTML = (message) => {
+    const formFields = message.elementData.formFields || [];
+    if (formFields.length === 0) return '';
+    
+    let formHTML = `
+      <form class="chat-form" data-message-id="${message.id}">
+        <div class="form-fields">
+    `;
+    
+    formFields.forEach(field => {
+      const fieldId = `form-field-${message.id}-${field.id || Math.random().toString(36).substring(2, 9)}`;
+      const isRequired = field.required ? 'required' : '';
+      
+      switch (field.type) {
+        case 'text':
+        case 'email':
+        case 'number':
+        case 'tel':
+        case 'url':
+          formHTML += `
+            <div class="form-field">
+              <label for="${fieldId}">${field.label || field.placeholder || 'Texte'}</label>
+              <input 
+                type="${field.type}" 
+                id="${fieldId}" 
+                name="${field.name || field.id || fieldId}" 
+                placeholder="${field.placeholder || ''}" 
+                ${isRequired}
+              >
+            </div>
+          `;
+          break;
+        case 'textarea':
+          formHTML += `
+            <div class="form-field">
+              <label for="${fieldId}">${field.label || field.placeholder || 'Texte'}</label>
+              <textarea 
+                id="${fieldId}" 
+                name="${field.name || field.id || fieldId}" 
+                placeholder="${field.placeholder || ''}" 
+                rows="4"
+                ${isRequired}
+              ></textarea>
+            </div>
+          `;
+          break;
+        case 'select':
+          const options = field.options || [];
+          formHTML += `
+            <div class="form-field">
+              <label for="${fieldId}">${field.label || 'Sélectionner'}</label>
+              <select 
+                id="${fieldId}" 
+                name="${field.name || field.id || fieldId}" 
+                ${isRequired}
+              >
+                <option value="" disabled selected>${field.placeholder || 'Sélectionnez une option'}</option>
+          `;
+          
+          options.forEach(option => {
+            const optionValue = typeof option === 'string' ? option : (option.value || option.text || option);
+            const optionText = typeof option === 'string' ? option : (option.text || option.label || option.value || option);
+            formHTML += `<option value="${optionValue}">${optionText}</option>`;
+          });
+          
+          formHTML += `
+              </select>
+            </div>
+          `;
+          break;
+        case 'checkbox':
+          formHTML += `
+            <div class="form-field checkbox-field">
+              <input 
+                type="checkbox" 
+                id="${fieldId}" 
+                name="${field.name || field.id || fieldId}" 
+                ${isRequired}
+              >
+              <label for="${fieldId}">${field.label || 'Option'}</label>
+            </div>
+          `;
+          break;
+        case 'radio':
+          const radioOptions = field.options || [];
+          formHTML += `
+            <div class="form-field radio-group">
+              <div class="radio-group-label">${field.label || 'Options'}</div>
+          `;
+          
+          radioOptions.forEach((option, idx) => {
+            const radioId = `${fieldId}-${idx}`;
+            const optionValue = typeof option === 'string' ? option : (option.value || option.text || option);
+            const optionText = typeof option === 'string' ? option : (option.text || option.label || option.value || option);
+            
+            formHTML += `
+              <div class="radio-option">
+                <input 
+                  type="radio" 
+                  id="${radioId}" 
+                  name="${field.name || field.id || fieldId}" 
+                  value="${optionValue}"
+                  ${idx === 0 && field.required ? 'required' : ''}
+                >
+                <label for="${radioId}">${optionText}</label>
+              </div>
+            `;
+          });
+          
+          formHTML += `
+            </div>
+          `;
+          break;
+      }
+    });
+    
+    formHTML += `
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="form-submit-button">${message.elementData.submitButtonText || 'Envoyer'}</button>
+        </div>
+        <div class="form-error"></div>
+      </form>
+    `;
+    
+    return formHTML;
+  };
+  
+  // Générer le HTML pour les champs de saisie
+  const generateInputHTML = (message) => {
+    const inputType = message.elementData?.inputType || 'text';
+    
+    return `
+      <div class="inline-input-container" id="input-${message.id}">
+        <form class="inline-input-form" data-message-id="${message.id}">
+          <div class="inline-input-field">
+            <input 
+              type="${inputType}" 
+              class="input-field" 
+              placeholder="${message.elementData?.placeholder || `Entrez votre ${inputType === 'email' ? 'email' : inputType === 'number' ? 'numéro' : 'réponse'}...`}" 
+              required
+            >
+            <button type="submit" class="input-submit-button">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+          <div class="inline-input-error"></div>
+        </form>
+      </div>
+    `;
+  };
+  
+  // Générer le HTML pour les médias (images, vidéos, audio)
+  const generateMediaHTML = (message, mediaType) => {
+    let mediaHTML = '<div class="media-container">';
+    
+    if (mediaType === 'image') {
+      mediaHTML += `<img src="${message.elementData.mediaUrl}" alt="${message.content || 'Image'}" onerror="this.src='https://via.placeholder.com/400x300?text=Image+non+disponible'">`;
+    } else if (mediaType === 'video') {
+      mediaHTML += `<video src="${message.elementData.mediaUrl}" controls></video>`;
+    } else if (mediaType === 'audio') {
+      mediaHTML += `<audio src="${message.elementData.mediaUrl}" controls></audio>`;
+    }
+    
+    if (message.content) {
+      mediaHTML += `<div class="media-caption">${message.content}</div>`;
+    }
+    
+    mediaHTML += '</div>';
+    return mediaHTML;
+  };
+  
+  // Attacher les écouteurs d'événements aux éléments d'un message
+  const attachEventListenersToMessage = (messageEl) => {
+    // Attacher les écouteurs aux boutons d'options
+    const optionButtons = messageEl.querySelectorAll('.option-button');
+    optionButtons.forEach(button => {
+      button.addEventListener('click', handleOptionClick);
+    });
+    
+    // Attacher les écouteurs aux formulaires
+    const forms = messageEl.querySelectorAll('form');
+    forms.forEach(form => {
+      form.addEventListener('submit', handleFormSubmit);
+    });
+    
+    // Attacher les écouteurs aux champs de saisie
+    const inputFields = messageEl.querySelectorAll('.input-field');
+    inputFields.forEach(input => {
+      input.addEventListener('keypress', handleInputKeypress);
+    });
+    
+    // Attacher les écouteurs aux boutons d'envoi des champs de saisie
+    const inputSubmitButtons = messageEl.querySelectorAll('.input-submit-button');
+    inputSubmitButtons.forEach(button => {
+      button.addEventListener('click', handleInputSubmit);
+    });
+  };
+  
+  // Mettre à jour l'interface utilisateur (régénération complète)
   const updateUI = () => {
     // Afficher l'indicateur de chargement
     if (state.isLoading) {
@@ -245,7 +551,8 @@ document.addEventListener('DOMContentLoaded', () => {
           
           html += `
             <button class="option-button ${selectedClass}" data-option="${option.text}" data-message-id="${message.id}">
-              ${option.text}
+              ${option.imageUrl ? `<img src="${option.imageUrl}" alt="${option.text || `Option ${index+1}`}" onerror="this.src='https://via.placeholder.com/80?text=Error'">` : ''}
+              <span>${option.text}</span>
             </button>
           `;
         });
@@ -271,12 +578,20 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<textarea id="${field.name}" name="${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}></textarea>`;
           } else if (field.type === 'select' && field.options) {
             html += `
-              <select id="${field.name}" name="${field.name}" ${field.required ? 'required' : ''}>
+              <select id="${field.name}" name="${field.name}" class="form-select" ${field.required ? 'required' : ''}>
                 <option value="">Sélectionnez une option</option>
             `;
             
             field.options.forEach(option => {
-              html += `<option value="${option.value}">${option.label}</option>`;
+              // Vérifier si option est un objet ou une chaîne de caractères
+              if (typeof option === 'string') {
+                html += `<option value="${option}">${option}</option>`;
+              } else if (typeof option === 'object') {
+                // S'assurer que la valeur n'est jamais undefined
+                const value = option.value || option.label || option.text || '';
+                const label = option.label || option.text || value;
+                html += `<option value="${value}">${label}</option>`;
+              }
             });
             
             html += `</select>`;
@@ -334,8 +649,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     chatMessages.innerHTML = html;
     
-    // Ajouter les événements pour les options et formulaires
-    attachEventListeners();
+    // Attacher les écouteurs d'événements à chaque message individuellement
+    document.querySelectorAll('.message').forEach(messageEl => {
+      attachEventListenersToMessage(messageEl);
+    });
+    
     // Scroll automatique en bas
     scrollToBottom();
   };
@@ -360,8 +678,12 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Gérer le clic sur une option
   const handleOptionClick = (event) => {
-    const optionText = event.target.dataset.option;
-    const messageId = event.target.dataset.messageId;
+    // Récupérer le bouton parent si l'utilisateur a cliqué sur un élément à l'intérieur du bouton
+    const button = event.target.closest('.option-button');
+    if (!button) return;
+    
+    const optionText = button.dataset.option;
+    const messageId = button.dataset.messageId;
     
     // Marquer l'option comme sélectionnée
     state.selectedOption = optionText;
@@ -381,13 +703,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Trouver l'option correspondante
-    const matchedOption = message.elementData.options.find(opt => opt.text === optionText);
+    let matchedOption;
+    
+    // Vérifier les différentes structures d'options possibles
+    if (message.elementData.options) {
+      // Cas 1: options est un tableau d'objets avec propriété 'text'
+      matchedOption = message.elementData.options.find(opt => typeof opt === 'object' && opt.text === optionText);
+      
+      // Cas 2: options est un tableau d'objets avec propriété 'label'
+      if (!matchedOption) {
+        matchedOption = message.elementData.options.find(opt => typeof opt === 'object' && opt.label === optionText);
+      }
+      
+      // Cas 3: options est un tableau de chaînes
+      if (!matchedOption) {
+        const index = message.elementData.options.findIndex(opt => typeof opt === 'string' && opt === optionText);
+        if (index >= 0) {
+          // Créer un objet option factice avec l'index comme targetNodeId
+          matchedOption = { text: optionText };
+          
+          // Chercher si un targetNodeId est défini ailleurs dans l'objet message
+          if (message.elementData.targetNodeIds && message.elementData.targetNodeIds[index]) {
+            matchedOption.targetNodeId = message.elementData.targetNodeIds[index];
+          }
+        }
+      }
+    }
+    
+    // Si une option correspondante est trouvée et a un targetNodeId
     if (matchedOption && matchedOption.targetNodeId) {
       // Trouver le nœud cible
       const targetNode = state.flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
       if (targetNode) {
         state.currentNodeId = targetNode.id;
         processNodeElements(targetNode);
+      }
+    } else {
+      // Sinon, suivre le flux normal (premier edge sortant)
+      const nextEdge = state.flowData.edges.find(e => e.source === state.currentNodeId);
+      if (nextEdge) {
+        const nextNode = state.flowData.nodes.find(n => n.id === nextEdge.target);
+        if (nextNode) {
+          state.currentNodeId = nextNode.id;
+          processNodeElements(nextNode);
+        }
       }
     }
     
