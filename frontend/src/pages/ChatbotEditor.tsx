@@ -587,61 +587,69 @@ const FlowEditor = () => {
           onNodeClick={onNodeClick}
           onNodeContextMenu={onNodeContextMenu}
           onPaneClick={onPaneClick}
-          onEdgeClick={(_, edge) => {
-            // Demander confirmation avant de supprimer la connexion
+          onEdgeClick={(event, edge) => {
+            // Fonction pour supprimer la connexion
+            const deleteConnection = () => {
+              // Supprimer la connexion
+              const updatedEdges = edges.filter((e) => e.id !== edge.id);
+              updateEdges(updatedEdges);
+
+              // Si c'est une connexion d'option, mettre à jour l'option dans le nœud source
+              if (edge.sourceHandle && edge.sourceHandle.startsWith('option-')) {
+                const [_, elementId, optionIndexStr] = edge.sourceHandle.split('-');
+                const optionIndex = parseInt(optionIndexStr, 10);
+
+                if (!isNaN(optionIndex) && elementId) {
+                  const updatedNodes = nodes.map((node) => {
+                    if (node.id === edge.source) {
+                      // Trouver l'élément et réinitialiser l'option
+                      const updatedElements = node.data?.elements?.map((element: any) => {
+                        if (element.id === elementId && element.options) {
+                          const updatedOptions = [...element.options];
+                          if (updatedOptions[optionIndex]) {
+                            updatedOptions[optionIndex] = {
+                              ...updatedOptions[optionIndex],
+                              targetNodeId: undefined
+                            };
+                          }
+                          return { ...element, options: updatedOptions };
+                        }
+                        return element;
+                      });
+
+                      return {
+                        ...node,
+                        data: { ...node.data, elements: updatedElements }
+                      };
+                    }
+                    return node;
+                  });
+
+                  // Mettre à jour les nœuds
+                  updateNodes(updatedNodes);
+                }
+              }
+
+              // Afficher une notification de succès
+              showToast({
+                type: 'success',
+                message: 'La connexion a été supprimée avec succès'
+              });
+            };
+
+            // Si la touche Alt est enfoncée, supprimer directement la connexion sans confirmation
+            if (event.altKey) {
+              deleteConnection();
+              return;
+            }
+
+            // Sinon, demander confirmation avant de supprimer la connexion
             setConfirmDialog({
               isOpen: true,
               title: 'Supprimer la connexion',
               message: 'Êtes-vous sûr de vouloir supprimer cette connexion ?',
               onConfirm: () => {
-                // Supprimer la connexion
-                const updatedEdges = edges.filter((e) => e.id !== edge.id);
-                updateEdges(updatedEdges);
-
-                // Si c'est une connexion d'option, mettre à jour l'option dans le nœud source
-                if (edge.sourceHandle && edge.sourceHandle.startsWith('option-')) {
-                  const [_, elementId, optionIndexStr] = edge.sourceHandle.split('-');
-                  const optionIndex = parseInt(optionIndexStr, 10);
-
-                  if (!isNaN(optionIndex) && elementId) {
-                    const updatedNodes = nodes.map((node) => {
-                      if (node.id === edge.source) {
-                        // Trouver l'élément et réinitialiser l'option
-                        const updatedElements = node.data?.elements?.map((element: any) => {
-                          if (element.id === elementId && element.options) {
-                            const updatedOptions = [...element.options];
-                            if (updatedOptions[optionIndex]) {
-                              updatedOptions[optionIndex] = {
-                                ...updatedOptions[optionIndex],
-                                targetNodeId: undefined
-                              };
-                            }
-                            return { ...element, options: updatedOptions };
-                          }
-                          return element;
-                        });
-
-                        return {
-                          ...node,
-                          data: { ...node.data, elements: updatedElements }
-                        };
-                      }
-                      return node;
-                    });
-
-                    // Mettre à jour les nœuds
-                    updateNodes(updatedNodes);
-                  }
-                }
-
-                // Afficher une notification de succès
-                showToast({
-                  type: 'success',
-                  message: 'La connexion a été supprimée avec succès'
-                });
-
-                // Fermer la modal
-                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                deleteConnection();
               }
             });
           }}
@@ -717,17 +725,16 @@ const FlowEditor = () => {
       />
 
       {/* Boîte de dialogue de confirmation */}
-      {confirmDialog.isOpen && (
-        <ConfirmDialog
-          title={confirmDialog.title}
-          message={confirmDialog.message}
-          onConfirm={() => {
-            confirmDialog.onConfirm();
-            setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-          }}
-          onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
-        />
-      )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        }}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
       
       {/* Modal de partage */}
       <ShareModal 
