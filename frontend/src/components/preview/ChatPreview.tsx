@@ -68,7 +68,11 @@ const InlineMultiFieldFormMessage: React.FC<InlineMultiFieldFormMessageProps> = 
       transition={{ duration: 0.4, delay: 0.3 }}
       className="mt-4 mb-2 mx-2"
     >
-      <InlineMultiFieldForm fields={element.formFields} onSubmit={handleSubmit} />
+      <InlineMultiFieldForm 
+        fields={element.formFields} 
+        onSubmit={handleSubmit} 
+        description={element.formDescription} 
+      />
     </motion.div>
   );
 };

@@ -35,6 +35,7 @@ import {
   ArrowDownTrayIcon,
   ArrowsPointingInIcon,
   PaperAirplaneIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import { NodeData, NodeType, NODE_TYPES } from '../components/flowchart/NodeTypes';
 import CustomNode from '../components/flowchart/CustomNode';
@@ -465,7 +466,7 @@ const FlowEditor = () => {
           }}
           className="flex items-center px-2 py-1 text-xs bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors min-h-0 min-w-0"
         >
-          <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+          <ArrowUpTrayIcon className="w-5 h-5 mr-2" />
           Exporter l’assistant
         </button>
         <button

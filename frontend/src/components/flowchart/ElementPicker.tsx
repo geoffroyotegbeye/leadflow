@@ -10,7 +10,6 @@ import {
   GlobeAltIcon,
   ClockIcon,
   StopIcon,
-  EnvelopeIcon,
   DevicePhoneMobileIcon,
   ArrowPathIcon,
   CircleStackIcon,
@@ -31,14 +30,9 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
   onClose,
   onSelect,
 }) => {
-  const [showInputTypeModal, setShowInputTypeModal] = React.useState(false);
-  const [pendingInputType, setPendingInputType] = React.useState<ElementType['inputType']>('text');
+  // État supprimé pour l'entrée libre
 
 const handleSelectElement = (type: ElementType['type']) => {
-  if (type === 'input') {
-    setShowInputTypeModal(true);
-    return;
-  }
   // Créer un nouvel élément pour tous les types, y compris 'image'
   const newElement: ElementType = {
     id: crypto.randomUUID(),
@@ -50,18 +44,7 @@ const handleSelectElement = (type: ElementType['type']) => {
   onClose();
 };
 
-  const handleInputTypeSelect = (inputType: ElementType['inputType']) => {
-    const newElement: ElementType = {
-      id: crypto.randomUUID(),
-      type: 'input',
-      content: '',
-      displayMode: 'after',
-      inputType,
-    };
-    onSelect(newElement);
-    setShowInputTypeModal(false);
-    onClose();
-  };
+  // Fonction supprimée pour la sélection du type d'entrée
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -99,14 +82,7 @@ const handleSelectElement = (type: ElementType['type']) => {
                 <span className="text-xs font-medium">Question</span>
                 <span className="text-[11px] text-gray-500 mt-1">Choix parmi des options</span>
               </button>
-              <button
-                className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
-                onClick={() => handleSelectElement('input')}
-              >
-                <EnvelopeIcon className="h-7 w-7 mb-1 text-yellow-500" />
-                <span className="text-xs font-medium">Entrée</span>
-                <span className="text-[11px] text-gray-500 mt-1">Demande une réponse simple</span>
-              </button>
+              {/* Élément d'entrée libre supprimé */}
               <button
                 className="flex flex-col items-center px-4 py-3 rounded bg-blue-50 hover:bg-blue-100 dark:bg-gray-900 dark:hover:bg-gray-700 transition"
                 onClick={() => handleSelectElement('form')}
@@ -126,31 +102,7 @@ const handleSelectElement = (type: ElementType['type']) => {
               
             </div>
 
-            {/* Modal pour choisir le type d'entrée libre */}
-            {showInputTypeModal ? (
-              <div className="flex flex-col gap-4 items-center justify-center p-6">
-                <span className="text-base font-medium text-gray-900 dark:text-white mb-2">Type d'entrée à demander :</span>
-                <div className="flex gap-3">
-                  <button
-                    className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => handleInputTypeSelect('text')}
-                  >Texte libre</button>
-                  <button
-                    className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => handleInputTypeSelect('email')}
-                  >Email</button>
-                  <button
-                    className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={() => handleInputTypeSelect('number')}
-                  >Numéro</button>
-                </div>
-                <button
-                  className="mt-6 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white underline"
-                  onClick={() => setShowInputTypeModal(false)}
-                >Annuler</button>
-              </div>
-            ) : null
-            }
+            {/* Modal pour choisir le type d'entrée libre supprimé */}
 
           </div>
         </Dialog.Panel>

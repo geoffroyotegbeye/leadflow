@@ -17,6 +17,7 @@ export type ElementType = {
     required?: boolean;
     options?: string[];
   }[];
+  formDescription?: string; // Description du formulaire
   mediaUrl?: string;
   mediaType?: string;
   carouselItems?: {

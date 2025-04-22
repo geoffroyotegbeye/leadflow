@@ -12,7 +12,8 @@ import {
   ArrowTrendingUpIcon,
   PlusIcon,
   SparklesIcon,
-  ArrowUpTrayIcon
+  ArrowUpTrayIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import AssistantService, { Assistant } from '../services/api';
 
@@ -349,8 +350,8 @@ const DashboardPage: React.FC = () => {
               </>
             ) : (
               <>
-                <ArrowUpTrayIcon className="w-5 h-5 mr-2" />
-                Importer JSON
+                <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+                Importer un assistant
               </>
             )}
           </button>

@@ -347,6 +347,21 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
       case 'form':
         return (
           <div className="space-y-2">
+            <div className="mb-4">
+              <label htmlFor={`form-description-${element.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Description du formulaire
+              </label>
+              <textarea
+                id={`form-description-${element.id}`}
+                value={element.formDescription || ''}
+                onChange={(e) => handleElementChange(element.id, { formDescription: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="Expliquez pourquoi l'utilisateur doit remplir ce formulaire..."
+                rows={3}
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Cette description sera affichée avant les champs du formulaire.</p>
+            </div>
+            
             <div className="mb-2">
               <span className="font-semibold">Champs du formulaire</span>
               <button
@@ -369,7 +384,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
               </button>
             </div>
             {(element.formFields || []).map((field, idx) => (
-              <div key={idx} className="flex flex-col md:flex-row md:items-center gap-2 bg-gray-50 dark:bg-gray-700 p-2 rounded mb-2">
+              <div key={idx} className="flex flex-col gap-2 bg-gray-50 dark:bg-gray-700 p-2 rounded mb-2">
                 <input
                   type="text"
                   value={field.label}
@@ -400,17 +415,22 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
                   <option value="radio">Boutons radio</option>
                 </select>
                 {(field.type === 'select' || field.type === 'radio') && (
-                  <input
-                    type="text"
-                    value={field.options ? field.options.join(',') : ''}
-                    onChange={e => {
-                      const newFields = [...(element.formFields || [])];
-                      newFields[idx].options = e.target.value.split(',').map(opt => opt.trim());
-                      handleElementChange(element.id, { formFields: newFields });
-                    }}
-                    placeholder="Options séparées par des virgules"
-                    className="rounded border-gray-300 dark:border-gray-600 px-2 py-1 flex-1"
-                  />
+                  <div className="w-full mt-2">
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Options (séparées par des virgules)
+                    </label>
+                    <input
+                      type="text"
+                      value={field.options ? field.options.join(',') : ''}
+                      onChange={e => {
+                        const newFields = [...(element.formFields || [])];
+                        newFields[idx].options = e.target.value.split(',').map(opt => opt.trim());
+                        handleElementChange(element.id, { formFields: newFields });
+                      }}
+                      placeholder="Option 1, Option 2, Option 3"
+                      className="rounded border-gray-300 dark:border-gray-600 px-2 py-1 w-full"
+                    />
+                  </div>
                 )}
                 <label className="flex items-center text-xs ml-2">
                   <input
@@ -450,7 +470,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6 max-h-[90vh] flex flex-col border dark:border-gray-700">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col gap-2 mt-2">
               <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
                 Éditer le nœud
               </Dialog.Title>
@@ -547,7 +567,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
 
                 {/* Section des éléments */}
                 <div className="mt-6">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col gap-2 mt-2">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                       Éléments ({formData?.elements?.length || 0})
                     </h3>
