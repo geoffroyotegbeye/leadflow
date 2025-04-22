@@ -31,9 +31,10 @@ import {
   ClockIcon,
   StopIcon,
   EyeIcon,
-  DocumentCheckIcon,
-  ViewfinderCircleIcon,
-  ShareIcon,
+  CheckCircleIcon,
+  ArrowDownTrayIcon,
+  ArrowsPointingInIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 import { NodeData, NodeType, NODE_TYPES } from '../components/flowchart/NodeTypes';
 import CustomNode from '../components/flowchart/CustomNode';
@@ -53,9 +54,6 @@ const iconMap = {
   ClockIcon,
   StopIcon,
   EyeIcon,
-  DocumentCheckIcon,
-  ViewfinderCircleIcon,
-  ShareIcon,
 };
 
 // Fonction pour créer un nœud de départ par défaut
@@ -401,87 +399,74 @@ const FlowEditor = () => {
       {/* Le panel latéral a été remplacé par la modal ElementPicker */}
 
       <div className={`absolute top-20 right-4 z-10 flex space-x-2 transition-all duration-300 ease-in-out ${isPreviewOpen ? 'mr-96' : ''}`}>
+
         <button
-          onClick={() => {
-            if (!assistantId) return;
-
-            // Créer un élément input de type file invisible
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.json';
-            fileInput.style.display = 'none';
-
-            // Gérer l'événement de changement de fichier
-            fileInput.onchange = (e) => {
-              const target = e.target as HTMLInputElement;
-              const file = target.files?.[0];
-
-              if (file) {
-                const reader = new FileReader();
-
-                reader.onload = (event) => {
-                  try {
-                    const jsonContent = event.target?.result as string;
-                    const parsedData = JSON.parse(jsonContent);
-
-                    // Vérifier que le JSON contient des nodes et des edges
-                    if (parsedData.nodes && parsedData.edges) {
-                      // Mettre à jour le flowchart avec les données importées
-                      updateNodes(parsedData.nodes);
-                      updateEdges(parsedData.edges);
-
-                      // Sauvegarder dans le localStorage
-                      const storageKey = `leadflow:assistant:${assistantId}:flowchart`;
-                      localStorage.setItem(storageKey, jsonContent);
-
-                      alert('Flowchart importé avec succès!');
-                    } else {
-                      alert('Format JSON invalide. Le fichier doit contenir des nodes et des edges.');
-                    }
-                  } catch (error) {
-                    console.error('Erreur lors de l\'importation du JSON:', error);
-                    alert('Erreur lors de l\'importation du JSON. Vérifiez le format du fichier.');
-                  }
-                };
-
-                reader.readAsText(file);
-              }
-
-              // Nettoyer l'élément input
-              document.body.removeChild(fileInput);
-            };
-
-            // Ajouter l'élément au DOM et déclencher le clic
-            document.body.appendChild(fileInput);
-            fileInput.click();
-          }}
-          className="flex items-center px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          Importer JSON
-        </button>
-        <button
-          onClick={() => {
+          onClick={async () => {
             if (!assistantId || !nodes.length) return;
 
-            // Créer un objet avec les données actuelles du store
-            const data = JSON.stringify({ nodes, edges });
+            // On va chercher toutes les infos de l'assistant courant
+            let assistantData = null;
+            try {
+              assistantData = await import('../stores/assistantStore').then(mod => mod.useAssistantStore.getState());
+            } catch (e) {
+              // fallback simple si import dynamique échoue
+              assistantData = {};
+            }
+
+            // On tente de récupérer le nom et la description (si chargés)
+            let name = '';
+            let description = '';
+            try {
+              // On recharge les infos complètes via l'API si possible (pour être sûr)
+              const api = await import('../services/api');
+              const assistant = await api.default.getById(assistantId);
+              name = assistant.name || '';
+              description = assistant.description || '';
+            } catch(e) {
+              // fallback si l'appel échoue
+              name = assistantData?.name || '';
+              description = assistantData?.description || '';
+            }
+
+            // Préparer l'objet complet à exporter (reprend la structure du modèle Assistant)
+            const exportData = {
+              id: assistantId,
+              name,
+              description,
+              nodes,
+              edges,
+              is_published: assistantData.isPublished || false,
+              public_id: assistantData.publicId || null,
+              public_url: assistantData.publicUrl || null,
+              embed_script: assistantData.embedScript || null,
+              // Ajoute d'autres champs si besoin...
+            };
+
+            const data = JSON.stringify(exportData, null, 2);
 
             // Générer le fichier JSON pour téléchargement
             const blob = new Blob([data], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `assistant-${assistantId}.json`;
+            // Nettoyer le nom pour un usage fichier (pas d'espaces ni de caractères spéciaux)
+            let safeName = name.trim().replace(/[^a-zA-Z0-9-_]/g, '_');
+            if (!safeName) safeName = `assistant-${assistantId}`;
+            a.download = `${safeName}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            alert('Flowchart exporté avec succès!');
+            showToast({
+              type: 'success',
+              message: 'Assistant exporté avec succès !'
+            });
           }}
-          className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          className="flex items-center px-2 py-1 text-xs bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors min-h-0 min-w-0"
         >
-          Exporter JSON
+          <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
+          Exporter l’assistant
         </button>
         <button
           onClick={() => {
@@ -498,23 +483,23 @@ const FlowEditor = () => {
               });
             });
           }}
-          className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors min-h-0 min-w-0"
         >
-          <DocumentCheckIcon className="w-5 h-5 mr-2" />
+          <CheckCircleIcon className="w-5 h-5 mr-2" />
           Sauvegarder
         </button>
         <button
           onClick={() => setIsPreviewOpen(true)}
-          className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          className="flex items-center px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors min-h-0 min-w-0"
         >
           <EyeIcon className="w-5 h-5 mr-2" />
           Prévisualiser
         </button>
         <button
           onClick={() => fitView({ padding: 0.5, includeHiddenNodes: true })}
-          className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          className="flex items-center px-2 py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors min-h-0 min-w-0"
         >
-          <ViewfinderCircleIcon className="w-5 h-5 mr-2" />
+          <ArrowsPointingInIcon className="w-5 h-5 mr-2" />
           Recentrer
         </button>
         <button
@@ -552,26 +537,19 @@ const FlowEditor = () => {
               }
             });
           }}
-          className={`flex items-center px-3 py-2 ${isPublished ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-lg transition-colors`}
+          className={`flex items-center px-2 py-1 text-xs ${isPublished ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-teal-600 hover:bg-teal-700'} text-white rounded-md transition-colors min-h-0 min-w-0`}
         >
-          {isPublished ? (
-            <>
-              <GlobeAltIcon className="w-5 h-5 mr-2" />
-              Publié
-            </>
-          ) : (
-            <>
-              <GlobeAltIcon className="w-5 h-5 mr-2" />
-              Publier
-            </>
-          )}
+          <>
+            <GlobeAltIcon className="w-5 h-5 mr-2" />
+            {isPublished ? 'Dépublier l’assistant' : 'Publier l’assistant'}
+          </>
         </button>
         {isPublished && (
           <button
             onClick={() => setIsShareModalOpen(true)}
-            className="flex items-center px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center px-2 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors min-h-0 min-w-0"
           >
-            <ShareIcon className="w-5 h-5 mr-2" />
+            <PaperAirplaneIcon className="w-5 h-5 mr-2" />
             Partager
           </button>
         )}

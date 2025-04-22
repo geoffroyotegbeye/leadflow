@@ -537,9 +537,12 @@ async def get_embed_script(assistant_id: str, request: Request):
             public_url = f"{base_url}/api/assistants/public/{public_id}"
             
             # Générer le script d'intégration
-            embed_script = f"""
-<div id=\"leadflow-assistant-{public_id}\"></div>\n<script 
-    src=\"{base_url}/static/js/embed.js\"\n    data-assistant-id=\"{public_id}\"\n    data-base-url=\"{base_url}\">\n</script>\n""".strip()
+            embed_script = f"""<div id="leadflow-assistant-{public_id}"></div>
+                <script 
+                    src="{base_url}/static/js/embed.js"
+                    data-assistant-id="{public_id}"
+                    data-base-url="{base_url}">
+                </script>""".strip()
             
             # Mettre à jour l'assistant avec les nouvelles données
             await collection.update_one(
