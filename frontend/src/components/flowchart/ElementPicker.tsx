@@ -34,8 +34,6 @@ export const ElementPicker: React.FC<ElementPickerProps> = ({
   const [showInputTypeModal, setShowInputTypeModal] = React.useState(false);
   const [pendingInputType, setPendingInputType] = React.useState<ElementType['inputType']>('text');
 
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-
 const handleSelectElement = (type: ElementType['type']) => {
   if (type === 'input') {
     setShowInputTypeModal(true);
@@ -50,36 +48,6 @@ const handleSelectElement = (type: ElementType['type']) => {
   };
   onSelect(newElement);
   onClose();
-};
-
-const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  // Upload via API
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('type', 'image');
-  try {
-    const response = await fetch('http://localhost:8000/api/upload/media', {
-      method: 'POST',
-      body: formData,
-    });
-    if (!response.ok) throw new Error('Erreur lors de l\'upload');
-    const data = await response.json();
-    const newElement: ElementType = {
-      id: crypto.randomUUID(),
-      type: 'image',
-      content: data.path, // Chemin retourné par l'API
-      displayMode: 'after'
-    };
-    onSelect(newElement);
-    onClose();
-  } catch (err) {
-    alert("Erreur lors de l'upload de l'image");
-  } finally {
-    // Réinitialise l'input pour permettre un nouvel upload
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
 };
 
   const handleInputTypeSelect = (inputType: ElementType['inputType']) => {
@@ -111,14 +79,6 @@ const handleImageFileChange = async (event: React.ChangeEvent<HTMLInputElement>)
               >
                 <XMarkIcon className="h-6 w-6 dark:text-white" />
               </button>
-              {/* Input file caché pour l'upload image */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleImageFileChange}
-              />
             </div>
 
             {/* Boutons pour chaque type d'élément */}

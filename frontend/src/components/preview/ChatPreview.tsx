@@ -668,7 +668,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           transition={{ duration: 0.3, delay: 0.2 }}
                           className="mt-2 space-y-1"
                         >
-                          <div className="flex flex-row gap-2 overflow-x-auto py-2">
+                          <div className="grid grid-cols-2 gap-2 py-2">
                             {/* Si nous avons des options avec images dans elementData (nouveau format) */}
                             {message.elementData?.options && message.elementData.options.length > 0 ? (
                               message.elementData.options.map((option: any, index: number) => (
@@ -676,10 +676,9 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                   key={index}
                                   onClick={() => handleOptionClick(option.text, message.elementData)}
                                   className={
-                                    `flex flex-col items-center justify-center px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-800 transition min-w-[72px]` +
+                                    `flex flex-col items-center justify-center px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-800 transition w-full` +
                                     (selectedOption === option.text ? ' ring-2 ring-blue-500' : '')
                                   }
-                                  style={{ minWidth: option.imageUrl ? 88 : 72 }}
                                 >
                                   {option.imageUrl && (
                                     <img 
@@ -692,7 +691,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                     />
                                   )}
                                   {option.text && (
-                                    <span className="text-xs text-gray-700 dark:text-gray-200 text-center break-words max-w-[80px]">{option.text}</span>
+                                    <span className="text-xs text-gray-700 dark:text-gray-200 text-center break-words">{option.text}</span>
                                   )}
                                 </button>
                               ))
@@ -703,11 +702,11 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                   key={index}
                                   onClick={() => handleOptionClick(option, message.elementData)}
                                   className={
-                                    `flex flex-col items-center justify-center px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-800 transition min-w-[72px]` +
+                                    `flex flex-col items-center justify-center px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-800 transition w-full` +
                                     (selectedOption === option ? ' ring-2 ring-blue-500' : '')
                                   }
                                 >
-                                  <span className="text-xs text-gray-700 dark:text-gray-200 text-center break-words max-w-[80px]">{option}</span>
+                                  <span className="text-xs text-gray-700 dark:text-gray-200 text-center break-words">{option}</span>
                                 </button>
                               ))
                             )}
