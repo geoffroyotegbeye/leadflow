@@ -41,11 +41,7 @@ const handleSelectElement = (type: ElementType['type']) => {
     setShowInputTypeModal(true);
     return;
   }
-  if (type === 'image') {
-    // Ouvre l'input file pour sélectionner une image
-    fileInputRef.current?.click();
-    return;
-  }
+  // Créer un nouvel élément pour tous les types, y compris 'image'
   const newElement: ElementType = {
     id: crypto.randomUUID(),
     type,

@@ -66,9 +66,18 @@ const CustomNode: React.FC<NodeProps<NodeData>> = ({ data, selected }) => {
                   <div className="flow-element-type">
                     {ELEMENT_TYPES[element.type].label}
                   </div>
-                  {element.content && (
+                  {element.content && element.type !== 'image' && (
                     <div className="flow-element-content">
                       {element.content}
+                    </div>
+                  )}
+                  {element.type === 'image' && (element.mediaUrl || element.content) && (
+                    <div className="flow-element-image">
+                      <img 
+                        src={element.mediaUrl || element.content} 
+                        alt="Image" 
+                        className="max-h-24 max-w-full object-contain rounded border border-gray-200 bg-white"
+                      />
                     </div>
                   )}
                   {element.type === 'question' && element.options && (
