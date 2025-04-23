@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AssistantForm from '../components/dashboard/AssistantForm';
 import AssistantCard from '../components/dashboard/AssistantCard';
+import DashboardStatsCharts from '../components/dashboard/DashboardStatsCharts';
+import DashboardRecentActivity from '../components/dashboard/DashboardRecentActivity';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/ToastContainer';
 import { motion } from 'framer-motion';
@@ -112,8 +114,12 @@ const DashboardPage: React.FC = () => {
       // Envoyer à l'API
       const createdAssistant = await AssistantService.create(newAssistant);
       
-      // Mettre à jour l'état local
-      setAssistants(prev => [...prev, createdAssistant]);
+      // Mettre à jour l'état local avec le bon typage
+      setAssistants(prev => [...prev, {
+        id: createdAssistant.id || '',
+        name: createdAssistant.name,
+        description: createdAssistant.description || ''
+      }]);
       
       showToast({ 
         type: 'success', 
@@ -181,8 +187,12 @@ const DashboardPage: React.FC = () => {
       // Envoyer à l'API
       const createdAssistant = await AssistantService.create(duplicatedAssistant);
       
-      // Mettre à jour l'état local
-      setAssistants(prev => [...prev, createdAssistant]);
+      // Mettre à jour l'état local avec le bon typage
+      setAssistants(prev => [...prev, {
+        id: createdAssistant.id || '',
+        name: createdAssistant.name,
+        description: createdAssistant.description || ''
+      }]);
       
       showToast({ 
         type: 'success', 
@@ -404,6 +414,12 @@ const DashboardPage: React.FC = () => {
         ))}
       </div>
 
+      {/* Statistiques avancées (graphiques) */}
+      <DashboardStatsCharts />
+
+      {/* Activité récente */}
+      <DashboardRecentActivity />
+
       {/* Recherche */}
       <div className="mb-6">
         <div className="relative">
@@ -438,7 +454,7 @@ const DashboardPage: React.FC = () => {
         </div>
       ) : filteredAssistants.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAssistants.map((assistant) => (
+          {filteredAssistants.slice(0, 3).map((assistant) => (
             <AssistantCard
               key={assistant.id}
               id={assistant.id}
@@ -448,9 +464,19 @@ const DashboardPage: React.FC = () => {
               onDuplicate={() => handleDuplicate(assistant.id)}
               onRename={handleRename}
               onUpdateDescription={handleUpdateDescription}
-              onEdit={() => navigate(`/chatbots/editor/${assistant.id}`)}
+              onEdit={() => navigate(`/dashboard/chatbots/editor/${assistant.id}`)}
             />
           ))}
+          {filteredAssistants.length > 3 && (
+            <div className="col-span-full flex justify-center mt-4">
+              <button
+                onClick={() => navigate('/dashboard/chatbots')}
+                className="inline-flex items-center px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium shadow"
+              >
+                Voir plus d'assistants
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-12">

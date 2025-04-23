@@ -1,42 +1,35 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import AnimatedBackground from '../components/AnimatedBackground';
 import GlassCard from '../components/GlassCard';
 import Input from '../components/Input';
-import { login } from '../services/auth';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/ToastContainer';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
   const [loading, setLoading] = useState(false);
-const { showToast } = useToast();
+  
+  const { login } = useAuth();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      const response = await login(email, password);
-      // Stocker le token JWT dans localStorage
-      localStorage.setItem("token", response.data.access_token);
-      // Stocker les infos utilisateur si nécessaire
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      
-      showToast({ type: 'success', message: 'Connexion réussie. Redirection...' });
-      // Rediriger vers le tableau de bord
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1000); // Petit délai pour voir le message de succès
+      await login(email, password);
+      showToast({ type: 'success', message: 'Connexion réussie.' });
+      // La redirection est gérée par le contexte d'authentification
     } catch (err: any) {
       const errorMessage = err?.response?.data?.detail || "Erreur lors de la connexion";
       showToast({ type: 'error', message: errorMessage });
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
 

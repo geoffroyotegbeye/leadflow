@@ -63,4 +63,3 @@ class ResetPassword(BaseModel):
 class Token(BaseModel):
     sub: str  # email ou user_id
     exp: int  # timestamp d'expiration
-    token: str

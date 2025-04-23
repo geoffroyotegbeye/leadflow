@@ -1,12 +1,5 @@
 // Configuration de l'application
-const config = {
-  // URL de l'API backend
-  // Avec Vite, on utilise directement l'URL hardcodée pour le moment
-  apiUrl: 'http://localhost:8000/api',
-  
-  // Autres configurations
-  defaultZoom: 0.35,
-  autosaveDelay: 2000, // Délai d'autosauvegarde en ms
-};
+export const API_URL = 'http://localhost:8000/api';
 
-export default config;
+export const DEFAULT_ZOOM = 0.35;
+export const AUTOSAVE_DELAY = 2000;

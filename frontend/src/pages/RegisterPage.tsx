@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeIcon, LockClosedIcon, BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline';
 import AnimatedBackground from '../components/AnimatedBackground';
 import GlassCard from '../components/GlassCard';
 import Input from '../components/Input';
-import { register as registerApi } from '../services/auth';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/ToastContainer';
 
 const RegisterPage: React.FC = () => {
@@ -26,6 +26,8 @@ const RegisterPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
 const { showToast } = useToast();
+const { register } = useAuth();
+const navigate = useNavigate();
 
 const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,33 +41,28 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
     
     try {
-      // Appel à l'API d'inscription via le service auth
-      // Transformer les noms des champs du formulaire pour qu'ils correspondent au backend
-      await registerApi(
+      // Utiliser la fonction register du contexte d'authentification
+      await register(
         formData.email, 
         formData.password, 
-        formData.fullName, // full_name dans le backend
-        formData.companyName // company_name dans le backend
+        formData.fullName,
+        formData.companyName
       );
       
       // Afficher un message de succès
       showToast({ 
         type: 'success', 
-        message: 'Compte créé avec succès. Vous allez être redirigé vers la page de connexion.' 
+        message: 'Compte créé avec succès.' 
       });
       
-      // Rediriger vers la page de connexion après un court délai
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
+      // La redirection est gérée par le contexte d'authentification
       
     } catch (err: any) {
       // Gestion des erreurs
       const errorMessage = err?.response?.data?.detail || "Erreur lors de l'inscription.";
       showToast({ type: 'error', message: errorMessage });
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
 

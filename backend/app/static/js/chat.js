@@ -23,7 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
     isLoading: true,
     typingTimeouts: [],
     selectedOption: null,
-    darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches
+    darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+    sessionId: null,
+    sessionStartTime: Date.now(),
+    lastNodeTime: Date.now(),
+    userInfo: {
+      source: new URLSearchParams(window.location.search).get('source') || 'direct',
+      referrer: document.referrer || 'direct',
+      userAgent: navigator.userAgent
+    }
   };
 
   // Appliquer le mode sombre si nécessaire
@@ -31,35 +39,85 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('dark');
   }
 
-  // Charger les données du flowchart
-  const loadFlowData = async () => {
+  // Charger les données du flow
+  const loadFlowData = () => {
+    state.isLoading = true;
+    updateUI();
+    
+    // Récupérer les données du flow depuis l'API
+    fetch(`${baseUrl}/api/assistants/${assistantId}/flow`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Erreur lors du chargement des données');
+        }
+        return response.json();
+      })
+      .then(data => {
+        state.flowData = data;
+        state.isLoading = false;
+        updateUI();
+        
+        // Initialiser la conversation
+        initializeChat();
+      })
+      .catch(error => {
+        console.error('Erreur:', error);
+        state.isLoading = false;
+        updateUI();
+        
+        // Afficher un message d'erreur
+        addMessage({
+          id: `error-${Date.now()}`,
+          content: "Erreur: Impossible de charger les données. Veuillez réessayer plus tard.",
+          type: 'text',
+          sender: 'bot',
+          timestamp: Date.now()
+        });
+      });
+  };
+  
+  // Initialiser la conversation
+  const initializeChat = async () => {
+    // Créer une session pour cette conversation
     try {
-      state.isLoading = true;
-      updateUI();
+      const response = await fetch(`${baseUrl}/api/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          assistant_id: assistantId,
+          user_info: state.userInfo
+        })
+      });
       
-      const response = await fetch(`${baseUrl}/api/assistants/${assistantId}`);
-      if (!response.ok) throw new Error('Erreur lors du chargement des données');
+      if (!response.ok) throw new Error('Erreur lors de la création de la session');
       
-      const data = await response.json();
-      state.flowData = {
-        nodes: data.nodes || [],
-        edges: data.edges || []
-      };
+      const sessionData = await response.json();
+      state.sessionId = sessionData.id;
+      state.sessionStartTime = Date.now();
+      console.log('Session créée:', state.sessionId);
       
-      state.isLoading = false;
-      updateUI();
+      // Trouver le nœud de départ
+      const startNode = state.flowData.nodes.find(node => node.type === 'start');
       
-      // Initialiser la conversation
-      initializeChat();
+      if (startNode) {
+        state.currentNodeId = startNode.id;
+        await processNodeElements(startNode);
+      } else {
+        addMessage({
+          id: `error-${Date.now()}`,
+          content: "Erreur: Impossible de trouver le nœud de départ.",
+          type: 'text',
+          sender: 'bot',
+          timestamp: Date.now()
+        });
+      }
     } catch (error) {
-      console.error('Erreur:', error);
-      state.isLoading = false;
-      updateUI();
-      
-      // Afficher un message d'erreur
+      console.error('Erreur lors de l\'initialisation du chat:', error);
       addMessage({
         id: `error-${Date.now()}`,
-        content: "Une erreur s'est produite lors du chargement de l'assistant. Veuillez réessayer plus tard.",
+        content: "Erreur: Impossible d'initialiser la conversation. Veuillez réessayer plus tard.",
         type: 'text',
         sender: 'bot',
         timestamp: Date.now()
@@ -67,65 +125,117 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   
-  // Initialiser la conversation
-  const initializeChat = () => {
-    if (!state.flowData.nodes.length) return;
+  // Traiter les éléments d'un nœud
+  const processNodeElements = async (node) => {
+    if (!node || !node.data) return;
     
-    // Trouver le nœud de départ
-    const startNode = state.flowData.nodes.find(node => node.data?.type === 'start');
-    if (startNode) {
-      state.currentNodeId = startNode.id;
-      
-      // Afficher les éléments du nœud de départ
-      if (startNode.data?.elements && startNode.data.elements.length > 0) {
-        processNodeElements(startNode);
+    const { elements } = node.data;
+    
+    if (!elements || !Array.isArray(elements)) {
+      console.error('Aucun élément trouvé dans le nœud:', node);
+      return;
+    }
+    
+    // Enregistrer le temps passé sur le nœud précédent
+    const timeSpentOnPreviousNode = Date.now() - state.lastNodeTime;
+    state.lastNodeTime = Date.now();
+    
+    // Envoyer un message au backend pour indiquer que nous sommes sur ce nœud
+    if (state.sessionId && node.id) {
+      try {
+        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            sender: 'bot',
+            content: 'node_visit',
+            content_type: 'system',
+            node_id: node.id,
+            metadata: {
+              time_spent_on_previous_node: timeSpentOnPreviousNode,
+              node_type: node.type,
+              timestamp: Date.now()
+            }
+          })
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement de la visite du nœud:', error);
       }
     }
-  };
-  
-  // Traiter les éléments d'un nœud
-  const processNodeElements = (node) => {
-    if (!node.data?.elements) return;
     
-    const processSequentially = (elements, index) => {
-      if (index >= elements.length) return;
-      
+    // Traiter chaque élément du nœud séquentiellement
+    let delay = 0;
+    const delayIncrement = 1000; // Délai entre chaque message
+    
+    for (let index = 0; index < elements.length; index++) {
       const element = elements[index];
-      const newMessage = {
-        id: `bot-${Date.now()}-${index}`,
-        content: element.content || '',
-        type: element.type,
-        sender: 'bot',
-        timestamp: Date.now(),
-        isTyping: true,
-        elementData: element
-      };
-      
-      // Ajouter le message avec animation de frappe
-      addMessage(newMessage);
-      
-      // Après un délai, marquer le message comme terminé
-      const typingTimeout = setTimeout(() => {
-        state.messages = state.messages.map(msg => {
-          if (msg.id === newMessage.id) {
-            return { ...msg, isTyping: false };
-          }
-          return msg;
-        });
-        updateUI();
+      await new Promise(resolve => {
+        setTimeout(async () => {
+          const messageId = `bot-${Date.now()}-${index}`;
+          
+          // Ajouter le message avec l'état "typing"
+          addMessage({
+            id: messageId,
+            content: element.content || '',
+            type: element.type || 'text',
+            sender: 'bot',
+            timestamp: Date.now(),
+            elementData: element,
+            isTyping: true,
+            nodeId: node.id
+          });
+          
+          // Simuler le temps de frappe
+          const typingDelay = Math.max(1000, (element.content?.length || 0) * 20);
+          
+          const timeoutId = setTimeout(async () => {
+            // Mettre à jour le message pour indiquer que la frappe est terminée
+            state.messages = state.messages.map(msg => {
+              if (msg.id === messageId) {
+                return { ...msg, isTyping: false };
+              }
+              return msg;
+            });
+            
+            updateUI();
+            
+            // Envoyer le message au backend pour les analytics
+            if (state.sessionId) {
+              try {
+                await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    session_id: state.sessionId,
+                    sender: 'bot',
+                    content: element.content || '',
+                    content_type: element.type || 'text',
+                    node_id: node.id,
+                    metadata: {
+                      element_type: element.type,
+                      timestamp: Date.now()
+                    }
+                  })
+                });
+              } catch (error) {
+                console.error('Erreur lors de l\'enregistrement du message:', error);
+              }
+            }
+            
+            resolve();
+          }, typingDelay);
+          
+          state.typingTimeouts.push(timeoutId);
+        }, delay);
         
-        // Puis afficher le message suivant
-        const nextTimeout = setTimeout(() => {
-          processSequentially(elements, index + 1);
-        }, 600);
-        
-        state.typingTimeouts.push(nextTimeout);
-      }, 1500 + Math.random() * 800);
-      
-      state.typingTimeouts.push(typingTimeout);
-    };
-    
-    processSequentially(node.data.elements, 0);
+        delay += delayIncrement;
+      });
+    }
   };
   
   // Ajouter un message à la conversation
@@ -178,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
     
-    // Générer le contenu du message selon son type
+    // Contenu du message selon son type
     if (message.isTyping) {
       messageHTML += `
         <div class="typing-indicator">
@@ -677,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   // Gérer le clic sur une option
-  const handleOptionClick = (event) => {
+  const handleOptionClick = async (event) => {
     // Récupérer le bouton parent si l'utilisateur a cliqué sur un élément à l'intérieur du bouton
     const button = event.target.closest('.option-button');
     if (!button) return;
@@ -736,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const targetNode = state.flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
       if (targetNode) {
         state.currentNodeId = targetNode.id;
-        processNodeElements(targetNode);
+        await processNodeElements(targetNode);
       }
     } else {
       // Sinon, suivre le flux normal (premier edge sortant)
@@ -745,7 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextNode = state.flowData.nodes.find(n => n.id === nextEdge.target);
         if (nextNode) {
           state.currentNodeId = nextNode.id;
-          processNodeElements(nextNode);
+          await processNodeElements(nextNode);
         }
       }
     }
@@ -758,55 +868,99 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   // Gérer la soumission d'un formulaire
-  const handleFormSubmit = (event) => {
+  const handleFormSubmit = async (event) => {
     event.preventDefault();
     
     const form = event.target;
     const messageId = form.dataset.messageId;
-    const formData = new FormData(form);
-    
-    // Convertir les données du formulaire en objet
-    const values = {};
-    for (const [key, value] of formData.entries()) {
-      values[key] = value;
-    }
-    
-    // Trouver le message correspondant
+    const targetNodeId = form.dataset.target;
     const message = state.messages.find(msg => msg.id === messageId);
-    if (!message || !message.elementData) return;
     
-    // Formater les données pour l'affichage
-    const formattedContent = Object.entries(values)
-      .map(([key, value]) => {
-        const field = message.elementData.formFields.find(f => f.name === key);
-        const label = field?.label || key;
-        return `${label}: ${value}`;
-      })
-      .join('\n');
+    // Collecter les données du formulaire
+    const formData = new FormData(form);
+    const formValues = {};
+    let formContent = '';
+    
+    for (const [name, value] of formData.entries()) {
+      formValues[name] = value;
+      formContent += `${name}: ${value}\n`;
+    }
     
     // Ajouter la réponse de l'utilisateur
     addMessage({
-      id: `user-form-${Date.now()}`,
-      content: formattedContent,
-      type: 'form',
+      id: `user-${Date.now()}`,
+      content: formContent,
+      type: 'form_response',
       sender: 'user',
       timestamp: Date.now(),
-      elementData: { formValues: values }
+      elementData: { formValues }
     });
     
-    // Passer au nœud suivant
-    const nextEdge = state.flowData.edges.find(e => e.source === state.currentNodeId);
-    if (nextEdge) {
-      const nextNode = state.flowData.nodes.find(n => n.id === nextEdge.target);
-      if (nextNode) {
-        state.currentNodeId = nextNode.id;
-        processNodeElements(nextNode);
+    // Désactiver le formulaire
+    form.querySelectorAll('input, textarea, select, button').forEach(el => {
+      el.disabled = true;
+    });
+    
+    // Envoyer les données du formulaire au backend pour les analytics
+    if (state.sessionId) {
+      try {
+        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            sender: 'user',
+            content: formContent,
+            content_type: 'form',
+            node_id: message?.nodeId,
+            metadata: {
+              form_values: formValues,
+              target_node_id: targetNodeId,
+              timestamp: Date.now()
+            }
+          })
+        });
+        
+        // Enregistrer chaque champ du formulaire individuellement pour les analytics
+        for (const [name, value] of Object.entries(formValues)) {
+          await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              session_id: state.sessionId,
+              sender: 'user',
+              content: value,
+              content_type: 'form_field',
+              node_id: message?.nodeId,
+              metadata: {
+                field_name: name,
+                field_value: value,
+                timestamp: Date.now()
+              }
+            })
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement des données du formulaire:', error);
+      }
+    }
+    
+    // Trouver le nœud cible et traiter ses éléments
+    if (targetNodeId) {
+      const targetNode = state.flowData.nodes.find(node => node.id === targetNodeId);
+      if (targetNode) {
+        state.currentNodeId = targetNode.id;
+        await processNodeElements(targetNode);
       }
     }
   };
   
   // Gérer la soumission d'un champ de saisie inline
-  const handleInlineInputSubmit = (event) => {
+  const handleInlineInputSubmit = async (event) => {
     event.preventDefault();
     
     const form = event.target;
@@ -852,10 +1006,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Passer au nœud suivant
     if (message.elementData && message.elementData.options && message.elementData.options[0]?.targetNodeId) {
       const targetNodeId = message.elementData.options[0].targetNodeId;
-      const targetNode = state.flowData.nodes.find(n => n.id === targetNodeId);
+      const targetNode = state.flowData.nodes.find(node => node.id === targetNodeId);
       if (targetNode) {
         state.currentNodeId = targetNode.id;
-        processNodeElements(targetNode);
+        await processNodeElements(targetNode);
       }
     } else {
       // Sinon, suivre le flux normal
@@ -864,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextNode = state.flowData.nodes.find(n => n.id === nextEdge.target);
         if (nextNode) {
           state.currentNodeId = nextNode.id;
-          processNodeElements(nextNode);
+          await processNodeElements(nextNode);
         }
       }
     }
@@ -903,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetNode = state.flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
         if (targetNode) {
           state.currentNodeId = targetNode.id;
-          processNodeElements(targetNode);
+          await processNodeElements(targetNode);
         }
       } else {
         // Si aucune option ne correspond, envoyer un message d'erreur
@@ -931,20 +1085,39 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   
   // Réinitialiser la conversation
-  const resetChat = () => {
-    // Effacer les timeouts en cours
-    state.typingTimeouts.forEach(timeout => clearTimeout(timeout));
+  const resetChat = async () => {
+    // Effacer tous les timeouts
+    state.typingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
     state.typingTimeouts = [];
+    
+    // Terminer la session précédente si elle existe
+    if (state.sessionId) {
+      try {
+        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/end`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Session terminée:', state.sessionId);
+      } catch (error) {
+        console.error('Erreur lors de la terminaison de la session:', error);
+      }
+    }
     
     // Réinitialiser l'état
     state.messages = [];
     state.currentNodeId = null;
     state.selectedOption = null;
+    state.sessionId = null;
+    state.sessionStartTime = Date.now();
+    state.lastNodeTime = Date.now();
     
+    // Mettre à jour l'UI
     updateUI();
     
     // Réinitialiser la conversation
-    initializeChat();
+    await initializeChat();
   };
   
   // Basculer le thème (clair/sombre)
