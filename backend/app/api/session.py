@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from bson import ObjectId
 from datetime import datetime, timedelta
 import logging
+import traceback
 from app.models.session import (
     SessionCreate, MessageCreate, SessionStepCreate,
     SessionResponse, MessageResponse, SessionStepResponse,
@@ -66,20 +67,62 @@ def step_to_response(step: Dict[str, Any]) -> Dict[str, Any]:
         "is_completed": step.get("is_completed", True)
     }
 
-@router.post("/sessions", response_model=SessionResponse)
+@router.post("/", response_model=SessionResponse)
 async def create_session(session: SessionCreate, request: Request):
     """
     Crée une nouvelle session pour un assistant.
     """
+    logger.info(f"🔍 Route POST / appelée - Création d'une session pour l'assistant: {session.assistant_id}")
+    logger.info(f"📋 Données reçues: {session.dict()}")
+    
     try:
-        db = get_database()
+        db = await get_database()
         
         # Vérifier si l'assistant existe
-        assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": ObjectId(session.assistant_id)})
+        logger.info(f"🔎 Vérification de l'existence de l'assistant: {session.assistant_id}")
+        try:
+            # Essayer de trouver l'assistant par son ID MongoDB
+            object_id = ObjectId(session.assistant_id)
+            logger.info(f"🔄 ObjectId créé avec succès: {object_id}")
+            assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": object_id})
+            logger.info(f"🔍 Résultat de la recherche par _id: {assistant is not None}")
+            
+            # Si l'assistant n'est pas trouvé par son ID MongoDB, essayer de le trouver par son public_id
+            if not assistant and session.user_info and "public_id" in session.user_info:
+                public_id = session.user_info["public_id"]
+                logger.info(f"🔄 Tentative de recherche par public_id: {public_id}")
+                assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": public_id})
+                logger.info(f"🔍 Résultat de la recherche par public_id: {assistant is not None}")
+                
+                # Si l'assistant est trouvé par son public_id, mettre à jour l'assistant_id dans la session
+                if assistant:
+                    logger.info(f"✅ Assistant trouvé par public_id, mise à jour de l'assistant_id")
+                    session.assistant_id = str(assistant["_id"])
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la recherche de l'assistant: {str(e)}")
+            if session.user_info and "public_id" in session.user_info:
+                public_id = session.user_info["public_id"]
+                logger.info(f"🔄 Tentative de recherche par public_id après erreur: {public_id}")
+                assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": public_id})
+                logger.info(f"🔍 Résultat de la recherche par public_id: {assistant is not None}")
+                
+                # Si l'assistant est trouvé par son public_id, mettre à jour l'assistant_id dans la session
+                if assistant:
+                    logger.info(f"✅ Assistant trouvé par public_id, mise à jour de l'assistant_id")
+                    session.assistant_id = str(assistant["_id"])
+                else:
+                    logger.error(f"❌ Assistant non trouvé par public_id")
+                    raise HTTPException(status_code=404, detail="Assistant non trouvé")
+            else:
+                logger.error(f"❌ Erreur lors de la conversion de l'ID en ObjectId et pas de public_id disponible: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"ID d'assistant invalide: {str(e)}")
+        
         if not assistant:
+            logger.warning(f"❌ Assistant avec ID {session.assistant_id} non trouvé")
             raise HTTPException(status_code=404, detail="Assistant non trouvé")
         
         # Créer la session
+        logger.info(f"📝 Création d'une nouvelle session pour l'assistant: {session.assistant_id}")
         new_session = {
             "assistant_id": session.assistant_id,
             "user_id": session.user_id,
@@ -95,20 +138,26 @@ async def create_session(session: SessionCreate, request: Request):
         
         # Enregistrer le début de session pour les analytics
         session_id = str(result.inserted_id)
+        logger.info(f"📊 Enregistrement du début de session {session_id} pour les analytics")
         await analytics_service.track_session_start(session_id, session.assistant_id, session.user_info)
         
+        logger.info(f"✅ Session créée avec succès: {session_id}")
         return session_to_response(new_session)
     except Exception as e:
         logger.error(f"Erreur lors de la création de la session: {str(e)}")
+        logger.error(f"Type d'erreur: {type(e).__name__}")
+        logger.error(f"Détails de la requête: {request.url}")
+        # logger.error(f"Corps de la requête: {await request.json()}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
-@router.post("/sessions/{session_id}/messages", response_model=MessageResponse)
+@router.post("/{session_id}/messages", response_model=MessageResponse)
 async def add_message(session_id: str, message: MessageCreate, request: Request):
     """
     Ajoute un message à une session existante et met à jour le statut de la session.
     """
     try:
-        db = get_database()
+        db = await get_database()
         
         # Vérifier si la session existe
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -219,13 +268,44 @@ async def add_message(session_id: str, message: MessageCreate, request: Request)
         logger.error(f"Erreur lors de l'ajout du message: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
-@router.put("/sessions/{session_id}/end", response_model=SessionResponse)
+@router.post("/{session_id}/nodes/{node_id}/viewed")
+async def mark_node_viewed(session_id: str, node_id: str, request: Request):
+    """
+    Marque un nœud comme vu par l'utilisateur et enregistre cette information pour les analytics.
+    """
+    try:
+        db = await get_database()
+        
+        # Vérifier si la session existe
+        session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
+        if not session:
+            raise HTTPException(status_code=404, detail="Session non trouvée")
+        
+        # Enregistrer l'étape dans la collection des étapes
+        step_data = {
+            "session_id": session_id,
+            "node_id": node_id,
+            "timestamp": datetime.utcnow(),
+            "is_completed": False
+        }
+        
+        await db[STEPS_COLLECTION].insert_one(step_data)
+        
+        # Mettre à jour les analytics
+        await analytics_service.track_node_completion(session_id, node_id, 0)
+        
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Erreur lors du marquage du nœud comme vu: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@router.put("/{session_id}/end", response_model=SessionResponse)
 async def end_session(session_id: str, request: Request):
     """
     Termine une session active.
     """
     try:
-        db = get_database()
+        db = await get_database()
         
         # Vérifier si la session existe
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -254,13 +334,13 @@ async def end_session(session_id: str, request: Request):
         logger.error(f"Erreur lors de la fin de la session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
-@router.get("/sessions/{session_id}", response_model=SessionResponse)
+@router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str, request: Request):
     """
     Récupère les détails d'une session.
     """
     try:
-        db = get_database()
+        db = await get_database()
         
         # Récupérer la session
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -272,13 +352,13 @@ async def get_session(session_id: str, request: Request):
         logger.error(f"Erreur lors de la récupération de la session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
-@router.get("/sessions/{session_id}/messages", response_model=List[MessageResponse])
+@router.get("/{session_id}/messages", response_model=List[MessageResponse])
 async def get_session_messages(session_id: str, request: Request):
     """
     Récupère tous les messages d'une session.
     """
     try:
-        db = get_database()
+        db = await get_database()
         
         # Vérifier si la session existe
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -295,13 +375,13 @@ async def get_session_messages(session_id: str, request: Request):
         logger.error(f"Erreur lors de la récupération des messages: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
-@router.get("/assistants/{assistant_id}/sessions", response_model=List[SessionResponse])
+@router.get("/by-assistant/{assistant_id}", response_model=List[SessionResponse])
 async def get_assistant_sessions(assistant_id: str, request: Request):
     """
     Récupère toutes les sessions d'un assistant.
     """
     try:
-        db = get_database()
+        db = await get_database()
         
         # Vérifier si l'assistant existe
         assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": ObjectId(assistant_id)})
@@ -318,13 +398,13 @@ async def get_assistant_sessions(assistant_id: str, request: Request):
         logger.error(f"Erreur lors de la récupération des sessions: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
-@router.get("/assistants/{assistant_id}/analytics", response_model=AnalyticsResponse)
+@router.get("/by-assistant/{assistant_id}/analytics", response_model=AnalyticsResponse)
 async def get_assistant_analytics(assistant_id: str, request: Request, days: int = 30):
     """
     Récupère les analytiques pour un assistant spécifique.
     """
     try:
-        db = get_database()
+        db = await get_database()
         
         # Vérifier si l'assistant existe
         assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": ObjectId(assistant_id)})

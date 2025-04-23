@@ -25,7 +25,7 @@ class AnalyticsService:
         """
         Enregistre le début d'une session et met à jour les analytics
         """
-        db = get_database()
+        db = await get_database()
         today = datetime.utcnow().strftime("%Y-%m-%d")
         
         # Mettre à jour les compteurs d'analytics pour aujourd'hui
@@ -63,7 +63,7 @@ class AnalyticsService:
         """
         Enregistre un message et met à jour les analytics
         """
-        db = get_database()
+        db = await get_database()
         
         # Récupérer la session
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -101,7 +101,7 @@ class AnalyticsService:
         """
         Enregistre un changement de statut de lead
         """
-        db = get_database()
+        db = await get_database()
         
         # Récupérer la session
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -144,7 +144,7 @@ class AnalyticsService:
         """
         Enregistre la fin d'une session
         """
-        db = get_database()
+        db = await get_database()
         
         # Récupérer la session
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -185,7 +185,7 @@ class AnalyticsService:
         """
         Enregistre la complétion d'un nœud et le temps passé
         """
-        db = get_database()
+        db = await get_database()
         
         # Récupérer la session
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})
@@ -214,7 +214,7 @@ class AnalyticsService:
         """
         Enregistre une réponse utilisateur pour les analytics
         """
-        db = get_database()
+        db = await get_database()
         
         # Récupérer la session
         session = await db[SESSIONS_COLLECTION].find_one({"_id": ObjectId(session_id)})

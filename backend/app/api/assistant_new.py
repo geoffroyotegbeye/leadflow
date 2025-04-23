@@ -526,7 +526,7 @@ async def get_embed_script(assistant_id: str, request: Request):
             detail="Une erreur est survenue lors de la génération du script d'intégration"
         )
 
-@router.get("/{assistant_id}/debug", response_model=dict)
+@router.get("/debug/{assistant_id}", response_model=dict)
 async def debug_assistant(assistant_id: str, request: Request):
     """
     Endpoint de diagnostic pour vérifier les champs d'un assistant.
@@ -603,38 +603,32 @@ async def get_public_assistant_legacy(public_id: str, request: Request):
         """
     )
 
-@router.get("/{public_id}/flow", response_model=dict)
+@router.get("/flow/{public_id}", response_model=dict)
 async def get_assistant_flow(public_id: str, request: Request):
     """
     Récupère les données du flow pour un assistant public.
     """
-    logger.info(f"🔍 Route GET /{public_id}/flow appelée - Récupération du flow pour l'assistant avec public_id: {public_id}")
     try:
         db = await get_database()
         collection = db[COLLECTION]
         
         # Récupérer l'assistant par son public_id
-        logger.info(f"🔎 Recherche de l'assistant avec public_id: {public_id}")
         assistant = await collection.find_one({"public_id": public_id})
         
         if not assistant:
-            logger.warning(f"❌ Assistant avec public_id {public_id} non trouvé")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Assistant non trouvé"
             )
         
         # Vérifier si l'assistant est publié
-        logger.info(f"✅ Assistant trouvé, vérification du statut de publication")
         if not assistant.get("is_published", False):
-            logger.warning(f"❌ Assistant avec public_id {public_id} n'est pas publié")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Assistant non trouvé ou non publié"
             )
         
         # Convertir en format de réponse
-        logger.info(f"🔄 Conversion des données de l'assistant en format de réponse")
         assistant_data = assistant_to_response(assistant)
         
         # Retourner uniquement les données nécessaires pour le flow
@@ -645,7 +639,6 @@ async def get_assistant_flow(public_id: str, request: Request):
             "edges": assistant_data["edges"]
         }
         
-        logger.info(f"✅ Données du flow récupérées avec succès pour l'assistant {public_id}")
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content=jsonable_encoder(flow_data)

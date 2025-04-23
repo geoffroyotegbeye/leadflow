@@ -108,12 +108,12 @@ class SessionService {
   }
 
   async getAssistantSessions(assistant_id: string): Promise<Session[]> {
-    const response = await axios.get(`${API_URL}/assistants/${assistant_id}/sessions`);
+    const response = await axios.get(`${API_URL}/sessions/by-assistant/${assistant_id}`);
     return response.data;
   }
 
   async getAssistantAnalytics(assistant_id: string, days: number = 30): Promise<AnalyticsData> {
-    const response = await axios.get(`${API_URL}/assistants/${assistant_id}/analytics?days=${days}`);
+    const response = await axios.get(`${API_URL}/sessions/by-assistant/${assistant_id}/analytics?days=${days}`);
     return response.data;
   }
 }

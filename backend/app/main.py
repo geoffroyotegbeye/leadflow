@@ -1,12 +1,15 @@
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from app.api.routes import api_router
 from app.database.mongodb import get_database, close_mongo_connection
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
 import logging
 import time
 import traceback
+from fastapi import HTTPException
 
 # Configuration du logging
 logging.basicConfig(
@@ -24,6 +27,10 @@ app = FastAPI(
 # Montage des fichiers statiques et media
 from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Configuration des templates pour le chat public
+templates_dir = Path(__file__).parent / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
 
 # Middleware pour compresser les réponses (utile pour les gros objets JSON)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -86,3 +93,60 @@ async def shutdown_db_client():
 @app.get("/")
 async def root():
     return {"message": "Bienvenue sur l'API leadflow"}
+
+@app.get("/chat/{public_id}", response_class=HTMLResponse)
+async def get_chat_page(public_id: str, request: Request):
+    """
+    Affiche la page de chat pour un assistant public.
+    """
+    try:
+        db = await get_database()
+        collection = db["assistants"]
+        
+        # Récupérer l'assistant par son public_id
+        assistant = await collection.find_one({"public_id": public_id})
+        
+        if not assistant:
+            raise HTTPException(
+                status_code=404,
+                detail="Assistant non trouvé"
+            )
+        
+        # Vérifier si l'assistant est publié
+        if not assistant.get("is_published", False):
+            raise HTTPException(
+                status_code=404,
+                detail="Assistant non trouvé ou non publié"
+            )
+        
+        # Convertir en format de réponse
+        from app.api.assistant import assistant_to_response
+        assistant_data = assistant_to_response(assistant)
+        
+        # Rendre le template HTML
+        return templates.TemplateResponse(
+            "chat.html",
+            {
+                "request": request,
+                "assistant": assistant_data,
+                "base_url": str(request.base_url).rstrip('/')
+            }
+        )
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de l'affichage de la page de chat: {str(e)}")
+        logger.error(traceback.format_exc())
+        return HTMLResponse(
+            content=f"""
+            <html>
+                <head>
+                    <title>Erreur</title>
+                </head>
+                <body>
+                    <h1>Erreur</h1>
+                    <p>Une erreur est survenue lors de l'affichage de la page de chat.</p>
+                </body>
+            </html>
+            """,
+            status_code=500
+        )

@@ -25,6 +25,7 @@ class MessageContentType(str, Enum):
     AUDIO = "audio"
     FILE = "file"
     QUICK_REPLY = "quick_reply"
+    OPTION = "option"
 
 class SessionCreate(BaseModel):
     assistant_id: str
@@ -32,7 +33,6 @@ class SessionCreate(BaseModel):
     user_info: Optional[Dict[str, Any]] = None
 
 class MessageCreate(BaseModel):
-    session_id: str
     sender: MessageSender
     content: str
     content_type: MessageContentType = MessageContentType.TEXT

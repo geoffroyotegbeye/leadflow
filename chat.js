@@ -4,7 +4,7 @@
  */
 
 // Configuration initiale
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Initialisation des variables
   const chatMessages = document.getElementById('chat-messages');
   const messageInput = document.getElementById('message-input');
@@ -40,84 +40,75 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Charger les données du flow
-  const loadFlowData = () => {
+  const loadFlowData = async () => {
     state.isLoading = true;
     updateUI();
     
     // Récupérer les données du flow depuis l'API
-    fetch(`${baseUrl}/api/assistants/${assistantId}/flow`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Erreur lors du chargement des données');
-        }
-        return response.json();
-      })
-      .then(data => {
-        state.flowData = data;
-        state.isLoading = false;
-        updateUI();
-        
-        // Initialiser la conversation
-        initializeChat();
-      })
-      .catch(error => {
-        console.error('Erreur:', error);
-        state.isLoading = false;
-        updateUI();
-        
-        // Afficher un message d'erreur
-        addMessage({
-          id: `error-${Date.now()}`,
-          content: "Erreur: Impossible de charger les données. Veuillez réessayer plus tard.",
-          type: 'text',
-          sender: 'bot',
-          timestamp: Date.now()
-        });
-      });
+    const response = await fetch(`${baseUrl}/api/assistants/${assistantId}/flow`);
+    
+    if (!response.ok) {
+      throw new Error('Erreur lors du chargement des données');
+    }
+    
+    const data = await response.json();
+    state.flowData = data;
+    state.isLoading = false;
+    updateUI();
+    
+    // Initialiser la conversation
+    await initializeChat();
   };
   
   // Initialiser la conversation
   const initializeChat = async () => {
-    // Créer une session pour cette conversation
-    try {
-      const response = await fetch(`${baseUrl}/api/sessions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          assistant_id: assistantId,
-          user_info: state.userInfo
-        })
-      });
+    // Trouver le nœud de départ
+    const startNode = state.flowData.nodes.find(node => {
+      // Soit c'est explicitement un nœud de départ
+      if (node.type === 'startNode') return true;
       
-      if (!response.ok) throw new Error('Erreur lors de la création de la session');
+      // Soit c'est un nœud qui n'a pas de connexion entrante
+      return !state.flowData.edges.some(edge => edge.target === node.id);
+    });
+    
+    if (startNode) {
+      state.currentNodeId = startNode.id;
       
-      const sessionData = await response.json();
-      state.sessionId = sessionData.id;
-      state.sessionStartTime = Date.now();
-      console.log('Session créée:', state.sessionId);
-      
-      // Trouver le nœud de départ
-      const startNode = state.flowData.nodes.find(node => node.type === 'start');
-      
-      if (startNode) {
-        state.currentNodeId = startNode.id;
+      // Créer une session pour la conversation
+      try {
+        const response = await fetch(`${baseUrl}/api/sessions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            assistant_id: state.flowData.id
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Erreur lors de la création de la session');
+        }
+        
+        const sessionData = await response.json();
+        state.sessionId = sessionData.id;
+        
+        // Traiter les éléments du nœud de départ
         await processNodeElements(startNode);
-      } else {
+      } catch (error) {
+        console.error('Erreur lors de l\'initialisation de la conversation:', error);
         addMessage({
           id: `error-${Date.now()}`,
-          content: "Erreur: Impossible de trouver le nœud de départ.",
+          content: "Erreur: Impossible d'initialiser la conversation. Veuillez réessayer plus tard.",
           type: 'text',
           sender: 'bot',
           timestamp: Date.now()
         });
       }
-    } catch (error) {
-      console.error('Erreur lors de l\'initialisation du chat:', error);
+    } else {
       addMessage({
         id: `error-${Date.now()}`,
-        content: "Erreur: Impossible d'initialiser la conversation. Veuillez réessayer plus tard.",
+        content: "Erreur: Impossible de trouver le nœud de départ.",
         type: 'text',
         sender: 'bot',
         timestamp: Date.now()
@@ -127,114 +118,61 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Traiter les éléments d'un nœud
   const processNodeElements = async (node) => {
-    if (!node || !node.data) return;
-    
-    const { elements } = node.data;
-    
-    if (!elements || !Array.isArray(elements)) {
-      console.error('Aucun élément trouvé dans le nœud:', node);
+    if (!node || !node.data || !node.data.elements) {
+      console.warn('Nœud invalide ou sans éléments:', node);
       return;
     }
     
-    // Enregistrer le temps passé sur le nœud précédent
-    const timeSpentOnPreviousNode = Date.now() - state.lastNodeTime;
-    state.lastNodeTime = Date.now();
-    
-    // Envoyer un message au backend pour indiquer que nous sommes sur ce nœud
-    if (state.sessionId && node.id) {
+    // Envoyer un message au backend pour indiquer que l'utilisateur est sur ce nœud
+    if (state.sessionId) {
       try {
-        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/nodes/${node.id}/viewed`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            session_id: state.sessionId,
-            sender: 'bot',
-            content: 'node_visit',
-            content_type: 'system',
-            node_id: node.id,
-            metadata: {
-              time_spent_on_previous_node: timeSpentOnPreviousNode,
-              node_type: node.type,
-              timestamp: Date.now()
-            }
-          })
+          }
         });
       } catch (error) {
-        console.error('Erreur lors de l\'enregistrement de la visite du nœud:', error);
+        console.error('Erreur lors de l\'enregistrement de la vue du nœud:', error);
       }
     }
     
     // Traiter chaque élément du nœud séquentiellement
-    let delay = 0;
-    const delayIncrement = 1000; // Délai entre chaque message
-    
-    for (let index = 0; index < elements.length; index++) {
-      const element = elements[index];
-      await new Promise(resolve => {
-        setTimeout(async () => {
-          const messageId = `bot-${Date.now()}-${index}`;
-          
-          // Ajouter le message avec l'état "typing"
-          addMessage({
-            id: messageId,
-            content: element.content || '',
-            type: element.type || 'text',
-            sender: 'bot',
-            timestamp: Date.now(),
-            elementData: element,
-            isTyping: true,
-            nodeId: node.id
-          });
-          
-          // Simuler le temps de frappe
-          const typingDelay = Math.max(1000, (element.content?.length || 0) * 20);
-          
-          const timeoutId = setTimeout(async () => {
-            // Mettre à jour le message pour indiquer que la frappe est terminée
-            state.messages = state.messages.map(msg => {
-              if (msg.id === messageId) {
-                return { ...msg, isTyping: false };
-              }
-              return msg;
-            });
-            
-            updateUI();
-            
-            // Envoyer le message au backend pour les analytics
-            if (state.sessionId) {
-              try {
-                await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    session_id: state.sessionId,
-                    sender: 'bot',
-                    content: element.content || '',
-                    content_type: element.type || 'text',
-                    node_id: node.id,
-                    metadata: {
-                      element_type: element.type,
-                      timestamp: Date.now()
-                    }
-                  })
-                });
-              } catch (error) {
-                console.error('Erreur lors de l\'enregistrement du message:', error);
-              }
-            }
-            
-            resolve();
-          }, typingDelay);
-          
-          state.typingTimeouts.push(timeoutId);
-        }, delay);
-        
-        delay += delayIncrement;
+    for (const element of node.data.elements) {
+      // Ajouter un message avec état de frappe
+      const messageId = `bot-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      addMessage({
+        id: messageId,
+        nodeId: node.id,
+        content: '',
+        type: element.type,
+        sender: 'bot',
+        timestamp: Date.now(),
+        isTyping: true,
+        elementData: element
       });
+      
+      // Simuler le temps de frappe
+      const typingTime = Math.max(500, element.content ? element.content.length * 10 : 500);
+      
+      await new Promise(resolve => setTimeout(resolve, typingTime));
+      
+      // Mettre à jour le message avec le contenu réel
+      updateMessage(messageId, {
+        content: element.content || '',
+        isTyping: false
+      });
+      
+      // Si c'est un élément avec des options ou un formulaire, attendre que l'utilisateur interagisse
+      if (
+        (element.type === 'options' && element.options && element.options.length > 0) ||
+        (element.type === 'form' && element.formFields && element.formFields.length > 0) ||
+        (element.type === 'input')
+      ) {
+        // Arrêter le traitement des éléments suivants jusqu'à ce que l'utilisateur interagisse
+        break;
+      }
     }
   };
   
@@ -409,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
           
           options.forEach(option => {
-            const optionValue = typeof option === 'string' ? option : (option.value || option.text || option);
+            const optionValue = typeof option === 'string' ? option : (option.value || option.label || option.text || option);
             const optionText = typeof option === 'string' ? option : (option.text || option.label || option.value || option);
             formHTML += `<option value="${optionValue}">${optionText}</option>`;
           });
@@ -524,6 +462,26 @@ document.addEventListener('DOMContentLoaded', () => {
     return mediaHTML;
   };
   
+  // Générer le HTML pour les options
+  const generateOptionsHTML = (message) => {
+    let optionsHTML = `<div class="options-container">`;
+    
+    message.elementData.options.forEach((option, index) => {
+      const isSelected = state.selectedOption === option.text;
+      const selectedClass = isSelected ? 'selected' : '';
+      
+      optionsHTML += `
+        <button class="option-button ${selectedClass}" data-option="${option.text}" data-message-id="${message.id}">
+          ${option.imageUrl ? `<img src="${option.imageUrl}" alt="${option.text || `Option ${index+1}`}" onerror="this.src='https://via.placeholder.com/80?text=Error'">` : ''}
+          <span>${option.text}</span>
+        </button>
+      `;
+    });
+    
+    optionsHTML += `</div>`;
+    return optionsHTML;
+  };
+  
   // Attacher les écouteurs d'événements aux éléments d'un message
   const attachEventListenersToMessage = (messageEl) => {
     // Attacher les écouteurs aux boutons d'options
@@ -533,22 +491,197 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // Attacher les écouteurs aux formulaires
-    const forms = messageEl.querySelectorAll('form');
+    const forms = messageEl.querySelectorAll('.inline-form');
     forms.forEach(form => {
       form.addEventListener('submit', handleFormSubmit);
     });
     
-    // Attacher les écouteurs aux champs de saisie
-    const inputFields = messageEl.querySelectorAll('.input-field');
-    inputFields.forEach(input => {
-      input.addEventListener('keypress', handleInputKeypress);
+    // Attacher les écouteurs aux champs de saisie inline
+    const inlineForms = messageEl.querySelectorAll('.inline-input-form');
+    inlineForms.forEach(form => {
+      form.addEventListener('submit', handleInlineInputSubmit);
+    });
+  };
+  
+  // Gérer la soumission d'un formulaire
+  const handleFormSubmit = async (event) => {
+    event.preventDefault();
+    
+    const form = event.target;
+    const messageId = form.dataset.messageId;
+    const formData = new FormData(form);
+    
+    // Convertir les données du formulaire en objet
+    const formValues = {};
+    for (const [key, value] of formData.entries()) {
+      formValues[key] = value;
+    }
+    
+    // Vérifier que tous les champs requis sont remplis
+    const requiredFields = form.querySelectorAll('[required]');
+    let hasError = false;
+    
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        hasError = true;
+        // Ajouter une classe d'erreur au champ
+        field.classList.add('error');
+      } else {
+        field.classList.remove('error');
+      }
     });
     
-    // Attacher les écouteurs aux boutons d'envoi des champs de saisie
-    const inputSubmitButtons = messageEl.querySelectorAll('.input-submit-button');
-    inputSubmitButtons.forEach(button => {
-      button.addEventListener('click', handleInputSubmit);
+    if (hasError) {
+      // Afficher un message d'erreur
+      const errorContainer = form.querySelector('.form-error');
+      if (errorContainer) {
+        errorContainer.textContent = 'Veuillez remplir tous les champs requis.';
+      }
+      return;
+    }
+    
+    // Formater les données pour l'affichage
+    const formattedContent = Object.entries(formValues)
+      .map(([key, value]) => {
+        // Récupérer le label du champ si disponible
+        const field = form.querySelector(`[name="${key}"]`);
+        const label = field ? field.previousElementSibling?.textContent || key : key;
+        return `${label}: ${value}`;
+      })
+      .join('\n');
+    
+    // Ajouter le message utilisateur
+    addMessage({
+      id: `user-form-${Date.now()}`,
+      content: formattedContent,
+      type: 'form',
+      sender: 'user',
+      timestamp: Date.now()
     });
+    
+    // Désactiver le formulaire
+    form.querySelectorAll('input, select, textarea, button').forEach(el => {
+      el.disabled = true;
+    });
+    
+    // Envoyer les données au backend
+    if (state.sessionId) {
+      try {
+        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            sender: 'user',
+            content: formattedContent,
+            content_type: 'form',
+            node_id: state.currentNodeId,
+            metadata: {
+              form_values: formValues,
+              timestamp: Date.now()
+            }
+          })
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement du message:', error);
+      }
+    }
+    
+    // Trouver le nœud suivant
+    const currentNode = state.flowData.nodes.find(node => node.id === state.currentNodeId);
+    if (currentNode) {
+      const outgoingEdge = state.flowData.edges.find(edge => edge.source === currentNode.id);
+      if (outgoingEdge) {
+        const nextNode = state.flowData.nodes.find(node => node.id === outgoingEdge.target);
+        if (nextNode) {
+          state.currentNodeId = nextNode.id;
+          await processNodeElements(nextNode);
+        }
+      }
+    }
+  };
+  
+  // Gérer la soumission d'un champ de saisie inline
+  const handleInlineInputSubmit = async (event) => {
+    event.preventDefault();
+    
+    const form = event.target;
+    const messageId = form.dataset.messageId;
+    const inputField = form.querySelector('input');
+    
+    if (!inputField || !inputField.value.trim()) {
+      // Afficher un message d'erreur
+      const errorContainer = form.querySelector('.inline-input-error');
+      if (errorContainer) {
+        errorContainer.textContent = 'Veuillez entrer une valeur.';
+      }
+      return;
+    }
+    
+    const inputValue = inputField.value.trim();
+    const inputType = inputField.type || 'text';
+    
+    // Validation simple
+    if (inputType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputValue)) {
+      const errorContainer = form.querySelector('.inline-input-error');
+      if (errorContainer) {
+        errorContainer.textContent = 'Veuillez entrer un email valide.';
+      }
+      return;
+    }
+    
+    // Ajouter le message utilisateur
+    addMessage({
+      id: `user-input-${Date.now()}`,
+      content: inputValue,
+      type: 'text',
+      sender: 'user',
+      timestamp: Date.now()
+    });
+    
+    // Désactiver le champ de saisie
+    inputField.disabled = true;
+    form.querySelector('button')?.setAttribute('disabled', 'true');
+    
+    // Envoyer les données au backend
+    if (state.sessionId) {
+      try {
+        await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            sender: 'user',
+            content: inputValue,
+            content_type: 'text',
+            node_id: state.currentNodeId,
+            metadata: {
+              input_type: inputType,
+              timestamp: Date.now()
+            }
+          })
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement du message:', error);
+      }
+    }
+    
+    // Trouver le nœud suivant
+    const currentNode = state.flowData.nodes.find(node => node.id === state.currentNodeId);
+    if (currentNode) {
+      const outgoingEdge = state.flowData.edges.find(edge => edge.source === currentNode.id);
+      if (outgoingEdge) {
+        const nextNode = state.flowData.nodes.find(node => node.id === outgoingEdge.target);
+        if (nextNode) {
+          state.currentNodeId = nextNode.id;
+          processNodeElements(nextNode);
+        }
+      }
+    }
   };
   
   // Mettre à jour l'interface utilisateur (régénération complète)
@@ -613,145 +746,148 @@ document.addEventListener('DOMContentLoaded', () => {
             <span></span>
           </div>
         `;
-      } else if (message.type === 'image' && message.elementData?.mediaUrl) {
-        html += `
-          <div class="media-container">
-            <img src="${message.elementData.mediaUrl}" alt="${message.content || 'Image'}" onerror="this.src='https://via.placeholder.com/400x300?text=Image+non+disponible'">
-            ${message.content ? `<div class="media-caption">${message.content}</div>` : ''}
-          </div>
-        `;
-      } else if (message.type === 'video' && message.elementData?.mediaUrl) {
-        html += `
-          <div class="media-container">
-            <video src="${message.elementData.mediaUrl}" controls></video>
-            ${message.content ? `<div class="media-caption">${message.content}</div>` : ''}
-          </div>
-        `;
-      } else if (message.type === 'audio' && message.elementData?.mediaUrl) {
-        html += `
-          <div class="media-container">
-            <audio src="${message.elementData.mediaUrl}" controls></audio>
-            ${message.content ? `<div class="media-caption">${message.content}</div>` : ''}
-          </div>
-        `;
-      } else if (message.type === 'form' && message.content) {
-        html += `<div class="form-response">`;
-        message.content.split('\n').forEach(line => {
-          const [label, value] = line.split(': ');
+      } else {
+        // Contenu du message selon son type
+        if (message.type === 'image' && message.elementData?.mediaUrl) {
           html += `
-            <div class="form-response-item">
-              <span class="form-response-label">${label}:</span>
-              <span class="form-response-value">${value}</span>
+            <div class="media-container">
+              <img src="${message.elementData.mediaUrl}" alt="${message.content || 'Image'}" onerror="this.src='https://via.placeholder.com/400x300?text=Image+non+disponible'">
+              ${message.content ? `<div class="media-caption">${message.content}</div>` : ''}
             </div>
           `;
-        });
-        html += `</div>`;
-      } else {
-        html += `<span>${message.content}</span>`;
-      }
-      
-      // Afficher les options si présentes
-      if (message.sender === 'bot' && !message.isTyping && 
-          message.elementData?.options && message.elementData.options.length > 0) {
-        html += `<div class="options-container">`;
-        
-        message.elementData.options.forEach((option, index) => {
-          const isSelected = state.selectedOption === option.text;
-          const selectedClass = isSelected ? 'selected' : '';
-          
+        } else if (message.type === 'video' && message.elementData?.mediaUrl) {
           html += `
-            <button class="option-button ${selectedClass}" data-option="${option.text}" data-message-id="${message.id}">
-              ${option.imageUrl ? `<img src="${option.imageUrl}" alt="${option.text || `Option ${index+1}`}" onerror="this.src='https://via.placeholder.com/80?text=Error'">` : ''}
-              <span>${option.text}</span>
-            </button>
+            <div class="media-container">
+              <video src="${message.elementData.mediaUrl}" controls></video>
+              ${message.content ? `<div class="media-caption">${message.content}</div>` : ''}
+            </div>
           `;
-        });
-        
-        html += `</div>`;
-      }
-      
-      // Afficher le formulaire si c'est un élément de type form
-      if (message.sender === 'bot' && !message.isTyping && message.type === 'form' && 
-          message.elementData?.formFields && message.elementData.formFields.length > 0) {
-        html += `
-          <div class="form-container" id="form-${message.id}">
-            <form class="inline-form" data-message-id="${message.id}">
-        `;
-        
-        message.elementData.formFields.forEach(field => {
+        } else if (message.type === 'audio' && message.elementData?.mediaUrl) {
           html += `
-            <div class="form-field">
-              <label for="${field.name}">${field.label || field.name}</label>
+            <div class="media-container">
+              <audio src="${message.elementData.mediaUrl}" controls></audio>
+              ${message.content ? `<div class="media-caption">${message.content}</div>` : ''}
+            </div>
           `;
+        } else if (message.type === 'form' && message.content) {
+          html += `<div class="form-response">`;
+          message.content.split('\n').forEach(line => {
+            const [label, value] = line.split(': ');
+            html += `
+              <div class="form-response-item">
+                <span class="form-response-label">${label}:</span>
+                <span class="form-response-value">${value}</span>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        } else {
+          html += `<span>${message.content}</span>`;
+        }
+        
+        // Ajouter les options si présentes
+        if (message.sender === 'bot' && !message.isTyping && 
+            message.elementData?.options && message.elementData.options.length > 0) {
+          html += `<div class="options-container">`;
           
-          if (field.type === 'textarea') {
-            html += `<textarea id="${field.name}" name="${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}></textarea>`;
-          } else if (field.type === 'select' && field.options) {
-            html += `
-              <select id="${field.name}" name="${field.name}" class="form-select" ${field.required ? 'required' : ''}>
-                <option value="">Sélectionnez une option</option>
-            `;
+          message.elementData.options.forEach((option, index) => {
+            const isSelected = state.selectedOption === option.text;
+            const selectedClass = isSelected ? 'selected' : '';
             
-            field.options.forEach(option => {
-              // Vérifier si option est un objet ou une chaîne de caractères
-              if (typeof option === 'string') {
-                html += `<option value="${option}">${option}</option>`;
-              } else if (typeof option === 'object') {
-                // S'assurer que la valeur n'est jamais undefined
-                const value = option.value || option.label || option.text || '';
-                const label = option.label || option.text || value;
-                html += `<option value="${value}">${label}</option>`;
-              }
-            });
-            
-            html += `</select>`;
-          } else {
             html += `
-              <input 
-                type="${field.type || 'text'}" 
-                id="${field.name}" 
-                name="${field.name}" 
-                placeholder="${field.placeholder || ''}" 
-                ${field.required ? 'required' : ''}
-              >
+              <button class="option-button ${selectedClass}" data-option="${option.text}" data-message-id="${message.id}">
+                ${option.imageUrl ? `<img src="${option.imageUrl}" alt="${option.text || `Option ${index+1}`}" onerror="this.src='https://via.placeholder.com/80?text=Error'">` : ''}
+                <span>${option.text}</span>
+              </button>
             `;
-          }
+          });
           
           html += `</div>`;
-        });
+        }
         
-        html += `
+        // Ajouter le formulaire si c'est un élément de type form
+        if (message.sender === 'bot' && !message.isTyping && message.type === 'form' && 
+            message.elementData?.formFields && message.elementData.formFields.length > 0) {
+          html += `
+            <div class="form-container" id="form-${message.id}">
+              <form class="inline-form" data-message-id="${message.id}">
+          `;
+          
+          message.elementData.formFields.forEach(field => {
+            html += `
+              <div class="form-field">
+                <label for="${field.name}">${field.label || field.name}</label>
+            `;
+            
+            if (field.type === 'textarea') {
+              html += `<textarea id="${field.name}" name="${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}></textarea>`;
+            } else if (field.type === 'select' && field.options) {
+              html += `
+                <select id="${field.name}" name="${field.name}" class="form-select" ${field.required ? 'required' : ''}>
+                  <option value="">Sélectionnez une option</option>
+              `;
+              
+              field.options.forEach(option => {
+                // Vérifier si option est un objet ou une chaîne de caractères
+                if (typeof option === 'string') {
+                  html += `<option value="${option}">${option}</option>`;
+                } else if (typeof option === 'object') {
+                  // S'assurer que la valeur n'est jamais undefined
+                  const value = option.value || option.label || option.text || '';
+                  const label = option.label || option.text || value;
+                  html += `<option value="${value}">${label}</option>`;
+                }
+              });
+              
+              html += `</select>`;
+            } else {
+              html += `
+                <input 
+                  type="${field.type || 'text'}" 
+                  id="${field.name}" 
+                  name="${field.name}" 
+                  placeholder="${field.placeholder || ''}" 
+                  ${field.required ? 'required' : ''}
+                >
+              `;
+            }
+            
+            html += `</div>`;
+          });
+          
+          html += `
               <button type="submit" class="form-submit">Envoyer</button>
             </form>
           </div>
         `;
-      }
-      
-      // Afficher le champ de saisie si c'est un élément de type input
-      if (message.sender === 'bot' && !message.isTyping && message.type === 'input') {
-        const inputType = message.elementData?.inputType || 'text';
+        }
         
-        html += `
-          <div class="inline-input-container" id="input-${message.id}">
-            <form class="inline-input-form" data-message-id="${message.id}">
-              <div class="inline-input-field">
-                <input 
-                  type="${inputType}" 
-                  class="inline-input" 
-                  placeholder="${message.elementData?.placeholder || `Entrez votre ${inputType === 'email' ? 'email' : inputType === 'number' ? 'numéro' : 'réponse'}...`}" 
-                  required
-                >
-                <button type="submit" class="inline-input-submit">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                </button>
-              </div>
-              <div class="inline-input-error"></div>
-            </form>
-          </div>
-        `;
+        // Ajouter le champ de saisie si c'est un élément de type input
+        if (message.sender === 'bot' && !message.isTyping && message.type === 'input') {
+          const inputType = message.elementData?.inputType || 'text';
+          
+          html += `
+            <div class="inline-input-container" id="input-${message.id}">
+              <form class="inline-input-form" data-message-id="${message.id}">
+                <div class="inline-input-field">
+                  <input 
+                    type="${inputType}" 
+                    class="inline-input" 
+                    placeholder="${message.elementData?.placeholder || `Entrez votre ${inputType === 'email' ? 'email' : inputType === 'number' ? 'numéro' : 'réponse'}...`}" 
+                    required
+                  >
+                  <button type="submit" class="inline-input-submit">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                  </button>
+                </div>
+                <div class="inline-input-error"></div>
+              </form>
+            </div>
+          `;
+        }
       }
       
       html += `</div>`;
@@ -788,120 +924,43 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Gérer le clic sur une option
   const handleOptionClick = async (event) => {
-    // Récupérer le bouton parent si l'utilisateur a cliqué sur un élément à l'intérieur du bouton
-    const button = event.target.closest('.option-button');
-    if (!button) return;
-    
-    const optionText = button.dataset.option;
+    const button = event.currentTarget;
+    const option = button.dataset.option;
     const messageId = button.dataset.messageId;
     
-    // Marquer l'option comme sélectionnée
-    state.selectedOption = optionText;
-    updateUI();
+    if (!option || !messageId) return;
     
     // Trouver le message correspondant
     const message = state.messages.find(msg => msg.id === messageId);
-    if (!message || !message.elementData) return;
+    if (!message || !message.elementData || !message.elementData.options) return;
+    
+    // Trouver l'option sélectionnée
+    const selectedOption = message.elementData.options.find(opt => opt.text === option);
+    if (!selectedOption) return;
+    
+    // Marquer l'option comme sélectionnée
+    state.selectedOption = option;
+    
+    // Mettre à jour l'UI pour montrer l'option sélectionnée
+    const optionButtons = document.querySelectorAll(`.option-button[data-message-id="${messageId}"]`);
+    optionButtons.forEach(btn => {
+      if (btn.dataset.option === option) {
+        btn.classList.add('selected');
+      } else {
+        btn.classList.add('not-selected');
+      }
+    });
     
     // Ajouter la réponse de l'utilisateur
     addMessage({
       id: `user-${Date.now()}`,
-      content: optionText,
-      type: 'text',
+      content: option,
+      type: 'option',
       sender: 'user',
       timestamp: Date.now()
     });
     
-    // Trouver l'option correspondante
-    let matchedOption;
-    
-    // Vérifier les différentes structures d'options possibles
-    if (message.elementData.options) {
-      // Cas 1: options est un tableau d'objets avec propriété 'text'
-      matchedOption = message.elementData.options.find(opt => typeof opt === 'object' && opt.text === optionText);
-      
-      // Cas 2: options est un tableau d'objets avec propriété 'label'
-      if (!matchedOption) {
-        matchedOption = message.elementData.options.find(opt => typeof opt === 'object' && opt.label === optionText);
-      }
-      
-      // Cas 3: options est un tableau de chaînes
-      if (!matchedOption) {
-        const index = message.elementData.options.findIndex(opt => typeof opt === 'string' && opt === optionText);
-        if (index >= 0) {
-          // Créer un objet option factice avec l'index comme targetNodeId
-          matchedOption = { text: optionText };
-          
-          // Chercher si un targetNodeId est défini ailleurs dans l'objet message
-          if (message.elementData.targetNodeIds && message.elementData.targetNodeIds[index]) {
-            matchedOption.targetNodeId = message.elementData.targetNodeIds[index];
-          }
-        }
-      }
-    }
-    
-    // Si une option correspondante est trouvée et a un targetNodeId
-    if (matchedOption && matchedOption.targetNodeId) {
-      // Trouver le nœud cible
-      const targetNode = state.flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
-      if (targetNode) {
-        state.currentNodeId = targetNode.id;
-        await processNodeElements(targetNode);
-      }
-    } else {
-      // Sinon, suivre le flux normal (premier edge sortant)
-      const nextEdge = state.flowData.edges.find(e => e.source === state.currentNodeId);
-      if (nextEdge) {
-        const nextNode = state.flowData.nodes.find(n => n.id === nextEdge.target);
-        if (nextNode) {
-          state.currentNodeId = nextNode.id;
-          await processNodeElements(nextNode);
-        }
-      }
-    }
-    
-    // Réinitialiser l'option sélectionnée après un court délai
-    setTimeout(() => {
-      state.selectedOption = null;
-      updateUI();
-    }, 500);
-  };
-  
-  // Gérer la soumission d'un formulaire
-  const handleFormSubmit = async (event) => {
-    event.preventDefault();
-    
-    const form = event.target;
-    const messageId = form.dataset.messageId;
-    const targetNodeId = form.dataset.target;
-    const message = state.messages.find(msg => msg.id === messageId);
-    
-    // Collecter les données du formulaire
-    const formData = new FormData(form);
-    const formValues = {};
-    let formContent = '';
-    
-    for (const [name, value] of formData.entries()) {
-      formValues[name] = value;
-      formContent += `${name}: ${value}\n`;
-    }
-    
-    // Ajouter la réponse de l'utilisateur
-    addMessage({
-      id: `user-${Date.now()}`,
-      content: formContent,
-      type: 'form_response',
-      sender: 'user',
-      timestamp: Date.now(),
-      elementData: { formValues }
-    });
-    
-    // Désactiver le formulaire
-    form.querySelectorAll('input, textarea, select, button').forEach(el => {
-      el.disabled = true;
-    });
-    
-    // Envoyer les données du formulaire au backend pour les analytics
+    // Envoyer la sélection au backend pour les analytics
     if (state.sessionId) {
       try {
         await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
@@ -912,110 +971,41 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({
             session_id: state.sessionId,
             sender: 'user',
-            content: formContent,
-            content_type: 'form',
-            node_id: message?.nodeId,
+            content: option,
+            content_type: 'option',
+            node_id: message.nodeId,
             metadata: {
-              form_values: formValues,
-              target_node_id: targetNodeId,
+              option_text: option,
               timestamp: Date.now()
             }
           })
         });
-        
-        // Enregistrer chaque champ du formulaire individuellement pour les analytics
-        for (const [name, value] of Object.entries(formValues)) {
-          await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              session_id: state.sessionId,
-              sender: 'user',
-              content: value,
-              content_type: 'form_field',
-              node_id: message?.nodeId,
-              metadata: {
-                field_name: name,
-                field_value: value,
-                timestamp: Date.now()
-              }
-            })
-          });
-        }
       } catch (error) {
-        console.error('Erreur lors de l\'enregistrement des données du formulaire:', error);
+        console.error('Erreur lors de l\'enregistrement de la sélection:', error);
       }
     }
     
-    // Trouver le nœud cible et traiter ses éléments
-    if (targetNodeId) {
-      const targetNode = state.flowData.nodes.find(node => node.id === targetNodeId);
-      if (targetNode) {
-        state.currentNodeId = targetNode.id;
-        await processNodeElements(targetNode);
-      }
-    }
-  };
-  
-  // Gérer la soumission d'un champ de saisie inline
-  const handleInlineInputSubmit = async (event) => {
-    event.preventDefault();
-    
-    const form = event.target;
-    const messageId = form.dataset.messageId;
-    const input = form.querySelector('.inline-input');
-    const errorDiv = form.querySelector('.inline-input-error');
-    
-    // Valider l'entrée
-    const inputValue = input.value.trim();
-    const inputType = input.type;
-    
-    if (!inputValue) {
-      errorDiv.textContent = "Ce champ est requis.";
-      return;
-    }
-    
-    if (inputType === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(inputValue)) {
-      errorDiv.textContent = "Veuillez entrer un email valide.";
-      return;
-    }
-    
-    if (inputType === 'number' && isNaN(Number(inputValue))) {
-      errorDiv.textContent = "Veuillez entrer un nombre valide.";
-      return;
-    }
-    
-    // Effacer l'erreur
-    errorDiv.textContent = "";
-    
-    // Trouver le message correspondant
-    const message = state.messages.find(msg => msg.id === messageId);
-    if (!message || !message.elementData) return;
-    
-    // Ajouter la réponse de l'utilisateur
-    addMessage({
-      id: `user-input-${Date.now()}`,
-      content: inputValue,
-      type: 'input',
-      sender: 'user',
-      timestamp: Date.now()
+    // Désactiver tous les boutons d'options
+    optionButtons.forEach(btn => {
+      btn.disabled = true;
     });
     
-    // Passer au nœud suivant
-    if (message.elementData && message.elementData.options && message.elementData.options[0]?.targetNodeId) {
-      const targetNodeId = message.elementData.options[0].targetNodeId;
-      const targetNode = state.flowData.nodes.find(node => node.id === targetNodeId);
+    // Trouver le nœud cible pour cette option
+    if (selectedOption.targetNodeId) {
+      const targetNode = state.flowData.nodes.find(node => node.id === selectedOption.targetNodeId);
       if (targetNode) {
         state.currentNodeId = targetNode.id;
         await processNodeElements(targetNode);
+        return;
       }
-    } else {
-      // Sinon, suivre le flux normal
-      const nextEdge = state.flowData.edges.find(e => e.source === state.currentNodeId);
-      if (nextEdge) {
-        const nextNode = state.flowData.nodes.find(n => n.id === nextEdge.target);
+    }
+    
+    // Si pas de nœud cible spécifique, suivre le flux normal
+    const currentNode = state.flowData.nodes.find(node => node.id === state.currentNodeId);
+    if (currentNode) {
+      const outgoingEdge = state.flowData.edges.find(edge => edge.source === currentNode.id);
+      if (outgoingEdge) {
+        const nextNode = state.flowData.nodes.find(node => node.id === outgoingEdge.target);
         if (nextNode) {
           state.currentNodeId = nextNode.id;
           await processNodeElements(nextNode);
@@ -1158,5 +1148,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // themeToggle.addEventListener('click', toggleTheme); // supprimé car plus de bouton dark mode
   
   // Charger les données initiales
-  loadFlowData();
+  await loadFlowData();
 });

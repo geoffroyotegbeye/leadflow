@@ -79,11 +79,18 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const assistant = await AssistantService.publishAssistant(selectedAssistantId, isPublished);
+      
+      // Si l'assistant est publié, récupérer immédiatement le script d'intégration à jour
+      let embedInfo = null;
+      if (isPublished) {
+        embedInfo = await AssistantService.getEmbedScript(selectedAssistantId);
+      }
+      
       set({ 
         isPublished: assistant.is_published || false,
         publicId: assistant.public_id || null,
-        publicUrl: assistant.public_url || null,
-        embedScript: assistant.embed_script || null,
+        publicUrl: embedInfo ? embedInfo.public_url : (assistant.public_url || null),
+        embedScript: embedInfo ? embedInfo.script : (assistant.embed_script || null),
         isLoading: false 
       });
       return assistant;

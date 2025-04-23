@@ -134,6 +134,34 @@ body {
   align-items: center;
 }
 
+.bot-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.bot-avatar svg {
+  width: 100%;
+  height: 100%;
+  color: white;
+}
+
+.bot-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .assistant-status {
   display: inline-block;
   width: 10px;
@@ -175,12 +203,16 @@ body {
   transition: background-color 0.3s;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
 }
 
 /* Pour les messages utilisateurs alignés à droite */
 .chat-messages .user-message {
   align-self: flex-end;
+}
+
+/* Pour les messages du bot alignés à gauche */
+.chat-messages .assistant-message {
+  align-self: flex-start;
 }
 
 .dark .chat-messages {
@@ -194,13 +226,20 @@ body {
   border-radius: 18px;
   position: relative;
   line-height: 1.5;
-  animation: message-appear 0.3s ease-out forwards;
-  opacity: 0;
-  transform: translateY(20px);
   display: inline-block;
   width: auto;
   min-width: 48px;
   word-break: break-word;
+  opacity: 1;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.new-message {
+  animation: message-appear 0.3s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
 }
 
 @keyframes message-appear {
@@ -217,15 +256,19 @@ body {
   border-bottom-right-radius: 5px;
   display: inline-block;
   width: auto;
+  border-right: 3px solid var(--primary-dark);
+  align-self: flex-end;
 }
 
 .assistant-message {
-  background-color: var(--message-bg);
+  background-color: #f9fafb; /* gray-50 */
   color: var(--text-color);
   margin-right: auto;
   border-bottom-left-radius: 5px;
   display: inline-block;
   width: auto;
+  border-left: 3px solid #e5e7eb; /* gray-200 */
+  align-self: flex-start;
 }
 
 .dark .assistant-message {

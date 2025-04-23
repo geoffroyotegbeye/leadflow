@@ -14,8 +14,12 @@ import {
   ArrowTrendingUpIcon,
   PlusIcon,
   SparklesIcon,
-  ArrowUpTrayIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  DocumentDuplicateIcon,
+  TrashIcon,
+  PencilSquareIcon,
+  EyeIcon,
+  ShareIcon
 } from '@heroicons/react/24/outline';
 import AssistantService, { Assistant } from '../services/api';
 
@@ -181,28 +185,33 @@ const DashboardPage: React.FC = () => {
       const duplicatedAssistant = {
         ...assistant,
         name: `${assistant.name} (Copie)`,
-        id: undefined // L'API générera un nouvel ID
+        id: undefined, // L'API générera un nouvel ID
+        is_published: false, // Réinitialiser l'état de publication
+        public_id: undefined, // Réinitialiser l'ID public
+        public_url: undefined, // Réinitialiser l'URL publique
+        embed_script: undefined // Réinitialiser le script d'intégration
       };
       
       // Envoyer à l'API
       const createdAssistant = await AssistantService.create(duplicatedAssistant);
       
-      // Mettre à jour l'état local avec le bon typage
+      // Mettre à jour la liste des assistants avec le bon typage
       setAssistants(prev => [...prev, {
         id: createdAssistant.id || '',
         name: createdAssistant.name,
         description: createdAssistant.description || ''
       }]);
       
-      showToast({ 
-        type: 'success', 
-        message: `Assistant "${assistant.name}" dupliqué avec succès` 
+      showToast({
+        type: 'success',
+        message: `Assistant "${createdAssistant.name}" dupliqué avec succès`
       });
     } catch (err) {
       console.error('Erreur lors de la duplication de l\'assistant:', err);
-      showToast({ 
-        type: 'error', 
-        message: 'Impossible de dupliquer l\'assistant. Veuillez réessayer plus tard.' 
+      setError('Impossible de dupliquer l\'assistant. Veuillez réessayer plus tard.');
+      showToast({
+        type: 'error',
+        message: 'Erreur lors de la duplication de l\'assistant'
       });
     }
   };
