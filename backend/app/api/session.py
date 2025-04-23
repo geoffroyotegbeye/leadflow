@@ -27,6 +27,7 @@ SESSIONS_COLLECTION = "sessions"
 MESSAGES_COLLECTION = "messages"
 STEPS_COLLECTION = "session_steps"
 ASSISTANTS_COLLECTION = "assistants"
+ANALYTICS_COLLECTION = "analytics"
 
 # Convertir un document MongoDB en modèle de réponse
 def session_to_response(session: Dict[str, Any]) -> Dict[str, Any]:
@@ -200,24 +201,55 @@ async def add_message(session_id: str, message: MessageCreate, request: Request)
                     # Vérifier les propriétés du node pour le statut de lead
                     new_lead_status = None
                     
+                    # Ajouter des logs pour déboguer
+                    logger.info(f"🔍 Vérification du nœud {message.node_id} pour le statut de lead")
+                    logger.info(f"📊 Propriétés du nœud: is_partial_lead={current_node.get('is_partial_lead', False)}, is_complete_lead={current_node.get('is_complete_lead', False)}, is_final_node={current_node.get('is_final_node', False)}")
+                    logger.info(f"📊 Propriétés du nœud (data): is_partial_lead={current_node.get('data', {}).get('is_partial_lead', False)}, is_complete_lead={current_node.get('data', {}).get('is_complete_lead', False)}, is_final_node={current_node.get('data', {}).get('is_final_node', False)}")
+                    
+                    # Vérifier d'abord dans les propriétés directes du nœud
                     if current_node.get("is_partial_lead", False) and session["lead_status"] == LeadStatus.NONE:
                         update_data["lead_status"] = LeadStatus.PARTIAL
                         new_lead_status = LeadStatus.PARTIAL
+                        logger.info(f"✅ Nœud marqué comme lead partiel (propriété directe)")
                     
                     if current_node.get("is_complete_lead", False):
                         update_data["lead_status"] = LeadStatus.COMPLETE
                         new_lead_status = LeadStatus.COMPLETE
-                        
+                        logger.info(f"✅ Nœud marqué comme lead complet (propriété directe)")
+                    
+                    # Vérifier également dans l'objet data du nœud
+                    if not new_lead_status and current_node.get("data", {}).get("is_partial_lead", False) and session["lead_status"] == LeadStatus.NONE:
+                        update_data["lead_status"] = LeadStatus.PARTIAL
+                        new_lead_status = LeadStatus.PARTIAL
+                        logger.info(f"✅ Nœud marqué comme lead partiel (propriété data)")
+                    
+                    if not new_lead_status or new_lead_status == LeadStatus.PARTIAL:
+                        if current_node.get("data", {}).get("is_complete_lead", False):
+                            update_data["lead_status"] = LeadStatus.COMPLETE
+                            new_lead_status = LeadStatus.COMPLETE
+                            logger.info(f"✅ Nœud marqué comme lead complet (propriété data)")
+                    
                     # Enregistrer le changement de statut de lead pour les analytics
                     if new_lead_status:
+                        logger.info(f"📈 Enregistrement du changement de statut de lead: {new_lead_status}")
                         await analytics_service.track_lead_status_change(session_id, new_lead_status)
                     
                     # Si c'est un node final, marquer la session comme complétée
                     session_status = None
+                    
+                    # Vérifier d'abord dans les propriétés directes du nœud
                     if current_node.get("is_final_node", False):
                         update_data["status"] = SessionStatus.COMPLETED
                         update_data["ended_at"] = datetime.utcnow()
                         session_status = SessionStatus.COMPLETED
+                        logger.info(f"✅ Nœud marqué comme final (propriété directe)")
+                    
+                    # Vérifier également dans l'objet data du nœud
+                    if not session_status and current_node.get("data", {}).get("is_final_node", False):
+                        update_data["status"] = SessionStatus.COMPLETED
+                        update_data["ended_at"] = datetime.utcnow()
+                        session_status = SessionStatus.COMPLETED
+                        logger.info(f"✅ Nœud marqué comme final (propriété data)")
                 
                 # Calculer le temps passé sur ce nœud
                 time_spent = 0
@@ -253,15 +285,18 @@ async def add_message(session_id: str, message: MessageCreate, request: Request)
                     if total_nodes > 0:
                         update_data["completion_percentage"] = min(100.0, (completed_steps / total_nodes) * 100)
                 
-                # Mettre à jour la session
-                await db[SESSIONS_COLLECTION].update_one(
-                    {"_id": ObjectId(session_id)},
-                    {"$set": update_data}
-                )
-                
-                # Si la session est terminée, enregistrer la fin pour les analytics
-                if session_status:
-                    await analytics_service.track_session_end(session_id, session_status)
+                # Mettre à jour la session avec les nouvelles informations
+                if update_data:
+                    logger.info(f"📝 Mise à jour de la session {session_id} avec: {update_data}")
+                    await db[SESSIONS_COLLECTION].update_one(
+                        {"_id": ObjectId(session_id)},
+                        {"$set": update_data}
+                    )
+                    
+                    # Si le statut de la session a changé, enregistrer pour les analytics
+                    if session_status:
+                        logger.info(f"📈 Enregistrement du changement de statut de session: {session_status}")
+                        await analytics_service.track_session_end(session_id, session_status)
         
         return message_to_response(new_message)
     except Exception as e:
@@ -384,7 +419,28 @@ async def get_assistant_sessions(assistant_id: str, request: Request):
         db = await get_database()
         
         # Vérifier si l'assistant existe
-        assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": ObjectId(assistant_id)})
+        assistant = None
+        try:
+            # Essayer d'abord avec l'ObjectId
+            object_id = ObjectId(assistant_id)
+            assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": object_id})
+            if assistant:
+                # Si trouvé par ObjectId, utiliser cet ID pour la recherche des sessions
+                assistant_id = str(assistant["_id"])
+        except Exception as e:
+            logger.info(f"L'ID {assistant_id} n'est pas un ObjectId valide, tentative avec public_id")
+            
+        # Si non trouvé par ObjectId, essayer avec public_id
+        if not assistant:
+            assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": assistant_id})
+            if not assistant:
+                # Essayer avec un ID court (sans le préfixe)
+                assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": {"$regex": f".*{assistant_id}$"}})
+            
+            if assistant:
+                # Si trouvé par public_id, utiliser l'ObjectId pour la recherche des sessions
+                assistant_id = str(assistant["_id"])
+        
         if not assistant:
             raise HTTPException(status_code=404, detail="Assistant non trouvé")
         
@@ -401,228 +457,84 @@ async def get_assistant_sessions(assistant_id: str, request: Request):
 @router.get("/by-assistant/{assistant_id}/analytics", response_model=AnalyticsResponse)
 async def get_assistant_analytics(assistant_id: str, request: Request, days: int = 30):
     """
-    Récupère les analytiques pour un assistant spécifique.
+    Récupère les analytics pour un assistant spécifique
     """
     try:
-        db = await get_database()
+        db = request.app.state.db
         
-        # Vérifier si l'assistant existe
-        assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": ObjectId(assistant_id)})
-        if not assistant:
-            raise HTTPException(status_code=404, detail="Assistant non trouvé")
+        # Convertir en ObjectId si c'est un ID MongoDB valide
+        try:
+            if ObjectId.is_valid(assistant_id):
+                query_id = ObjectId(assistant_id)
+                assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": query_id})
+                if assistant and "public_id" in assistant:
+                    public_id = assistant["public_id"]
+                else:
+                    public_id = str(query_id)
+            else:
+                # Rechercher l'assistant par public_id pour obtenir son _id
+                assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": assistant_id})
+                if not assistant:
+                    raise HTTPException(status_code=404, detail="Assistant not found")
+                query_id = assistant["_id"]
+                public_id = assistant_id
+        except Exception as e:
+            logger.error(f"Erreur lors de la conversion de l'ID d'assistant: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid assistant ID format: {str(e)}")
         
-        # Période d'analyse
+        logger.info(f"🔍 Récupération des analytics pour l'assistant: ID={assistant_id}, query_id={query_id}, public_id={public_id}")
+        
+        # Calculer la date de début pour la période spécifiée
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
         
-        # Récupérer les statistiques de base
-        total_sessions = await db[SESSIONS_COLLECTION].count_documents({
-            "assistant_id": assistant_id
-        })
+        # Récupérer les données d'analytiques pour la période
+        analytics_data = await db[ANALYTICS_COLLECTION].find({
+            "assistant_id": {"$in": [str(query_id), public_id]},
+            "date": {"$gte": start_date.strftime("%Y-%m-%d"), "$lte": end_date.strftime("%Y-%m-%d")}
+        }).to_list(1000)
         
-        active_sessions = await db[SESSIONS_COLLECTION].count_documents({
-            "assistant_id": assistant_id,
-            "status": SessionStatus.ACTIVE
-        })
+        logger.info(f"📊 Données d'analytiques trouvées: {len(analytics_data)} documents")
         
-        completed_sessions = await db[SESSIONS_COLLECTION].count_documents({
-            "assistant_id": assistant_id,
-            "status": SessionStatus.COMPLETED
-        })
+        # Initialiser les compteurs
+        total_sessions = 0
+        active_sessions = 0
+        completed_sessions = 0
+        abandoned_sessions = 0
+        total_leads = 0
+        partial_leads = 0
+        complete_leads = 0
+        session_durations = []
         
-        abandoned_sessions = await db[SESSIONS_COLLECTION].count_documents({
-            "assistant_id": assistant_id,
-            "status": SessionStatus.ABANDONED
-        })
+        # Agréger les données d'analytiques
+        for item in analytics_data:
+            total_sessions += item.get("sessions_count", 0)
+            active_sessions += item.get("active_sessions", 0)
+            completed_sessions += item.get("completed_sessions", 0)
+            abandoned_sessions += item.get("abandoned_sessions", 0)
+            total_leads += item.get("leads_count", 0)
+            partial_leads += item.get("partial_leads", 0)
+            complete_leads += item.get("complete_leads", 0)
+            session_durations.extend(item.get("session_durations", []))
         
-        partial_leads = await db[SESSIONS_COLLECTION].count_documents({
-            "assistant_id": assistant_id,
-            "lead_status": LeadStatus.PARTIAL
-        })
+        # Calculer les métriques dérivées
+        avg_completion_percentage = 0
+        if total_sessions > 0:
+            avg_completion_percentage = (completed_sessions / total_sessions) * 100
         
-        complete_leads = await db[SESSIONS_COLLECTION].count_documents({
-            "assistant_id": assistant_id,
-            "lead_status": LeadStatus.COMPLETE
-        })
+        avg_session_duration = 0
+        if session_durations:
+            avg_session_duration = sum(session_durations) / len(session_durations)
         
-        total_leads = partial_leads + complete_leads
+        conversion_rate = 0
+        if total_sessions > 0:
+            conversion_rate = (total_leads / total_sessions) * 100
         
-        # Calculer le pourcentage moyen de complétion
-        completion_pipeline = [
-            {"$match": {"assistant_id": assistant_id}},
-            {"$group": {"_id": None, "avg_completion": {"$avg": "$completion_percentage"}}}
-        ]
-        completion_result = await db[SESSIONS_COLLECTION].aggregate(completion_pipeline).to_list(length=1)
-        average_completion = completion_result[0]["avg_completion"] if completion_result else 0
+        completion_rate = 0
+        if total_leads > 0:
+            completion_rate = (complete_leads / total_leads) * 100
         
-        # Calculer la durée moyenne des sessions
-        duration_pipeline = [
-            {
-                "$match": {
-                    "assistant_id": assistant_id,
-                    "status": SessionStatus.COMPLETED,
-                    "started_at": {"$ne": None},
-                    "ended_at": {"$ne": None}
-                }
-            },
-            {
-                "$project": {
-                    "duration_seconds": {
-                        "$divide": [
-                            {"$subtract": ["$ended_at", "$started_at"]},
-                            1000
-                        ]
-                    }
-                }
-            },
-            {"$group": {"_id": None, "avg_duration": {"$avg": "$duration_seconds"}}}
-        ]
-        duration_result = await db[SESSIONS_COLLECTION].aggregate(duration_pipeline).to_list(length=1)
-        average_duration = duration_result[0]["avg_duration"] if duration_result else 0
-        
-        # Sessions par jour
-        sessions_by_day = {}
-        for i in range(days):
-            day = (end_date - timedelta(days=i)).strftime("%Y-%m-%d")
-            sessions_by_day[day] = 0
-        
-        day_pipeline = [
-            {
-                "$match": {
-                    "assistant_id": assistant_id,
-                    "started_at": {"$gte": start_date, "$lte": end_date}
-                }
-            },
-            {
-                "$group": {
-                    "_id": {
-                        "$dateToString": {"format": "%Y-%m-%d", "date": "$started_at"}
-                    },
-                    "count": {"$sum": 1}
-                }
-            }
-        ]
-        day_results = await db[SESSIONS_COLLECTION].aggregate(day_pipeline).to_list(length=days)
-        
-        for result in day_results:
-            sessions_by_day[result["_id"]] = result["count"]
-        
-        # Leads par jour
-        leads_by_day = {}
-        for i in range(days):
-            day = (end_date - timedelta(days=i)).strftime("%Y-%m-%d")
-            leads_by_day[day] = 0
-        
-        leads_pipeline = [
-            {
-                "$match": {
-                    "assistant_id": assistant_id,
-                    "lead_status": {"$in": [LeadStatus.PARTIAL, LeadStatus.COMPLETE]},
-                    "started_at": {"$gte": start_date, "$lte": end_date}
-                }
-            },
-            {
-                "$group": {
-                    "_id": {
-                        "$dateToString": {"format": "%Y-%m-%d", "date": "$started_at"}
-                    },
-                    "count": {"$sum": 1}
-                }
-            }
-        ]
-        leads_results = await db[SESSIONS_COLLECTION].aggregate(leads_pipeline).to_list(length=days)
-        
-        for result in leads_results:
-            leads_by_day[result["_id"]] = result["count"]
-        
-        # Complétion par node
-        completion_by_node = []
-        if "nodes" in assistant:
-            for node in assistant["nodes"]:
-                node_id = node.get("id")
-                if node_id:
-                    node_visits = await db[STEPS_COLLECTION].count_documents({
-                        "node_id": node_id,
-                        "session_id": {"$in": [str(s["_id"]) for s in await db[SESSIONS_COLLECTION].find({"assistant_id": assistant_id}).to_list(length=1000)]}
-                    })
-                    
-                    completion_by_node.append({
-                        "node_id": node_id,
-                        "node_label": node.get("data", {}).get("label", "Node sans nom"),
-                        "visits": node_visits,
-                        "completion_rate": (node_visits / total_sessions) * 100 if total_sessions > 0 else 0
-                    })
-        
-        # Réponses populaires (pour les formulaires et sélections)
-        popular_responses = []
-        form_messages = await db[MESSAGES_COLLECTION].find({
-            "sender": MessageSender.USER,
-            "content_type": {"$in": [MessageContentType.FORM, MessageContentType.QUICK_REPLY]},
-            "session_id": {"$in": [str(s["_id"]) for s in await db[SESSIONS_COLLECTION].find({"assistant_id": assistant_id}).to_list(length=1000)]}
-        }).to_list(length=1000)
-        
-        response_counts = {}
-        for msg in form_messages:
-            if msg.get("metadata"):
-                for key, value in msg["metadata"].items():
-                    response_key = f"{msg.get('node_id', 'unknown')}:{key}"
-                    if response_key not in response_counts:
-                        response_counts[response_key] = {}
-                    
-                    if value not in response_counts[response_key]:
-                        response_counts[response_key][value] = 0
-                    
-                    response_counts[response_key][value] += 1
-        
-        for response_key, counts in response_counts.items():
-            node_id, field = response_key.split(":", 1)
-            
-            # Trouver le label du node
-            node_label = "Node inconnu"
-            if "nodes" in assistant:
-                node = next((n for n in assistant["nodes"] if n.get("id") == node_id), None)
-                if node:
-                    node_label = node.get("data", {}).get("label", "Node sans nom")
-            
-            popular_responses.append({
-                "node_id": node_id,
-                "node_label": node_label,
-                "field": field,
-                "responses": [{"value": k, "count": v} for k, v in sorted(counts.items(), key=lambda x: x[1], reverse=True)]
-            })
-        
-        # Temps moyen par node
-        time_by_node = []
-        if "nodes" in assistant:
-            for node in assistant["nodes"]:
-                node_id = node.get("id")
-                if node_id:
-                    # Récupérer toutes les étapes pour ce node
-                    steps = await db[STEPS_COLLECTION].find({
-                        "node_id": node_id,
-                        "session_id": {"$in": [str(s["_id"]) for s in await db[SESSIONS_COLLECTION].find({"assistant_id": assistant_id}).to_list(length=1000)]}
-                    }).sort("timestamp", 1).to_list(length=1000)
-                    
-                    # Calculer le temps passé sur chaque node
-                    total_time = 0
-                    count = 0
-                    
-                    for i, step in enumerate(steps):
-                        if i < len(steps) - 1 and steps[i]["session_id"] == steps[i+1]["session_id"]:
-                            time_diff = (steps[i+1]["timestamp"] - step["timestamp"]).total_seconds()
-                            if time_diff < 3600:  # Ignorer les différences de plus d'une heure (probablement une déconnexion)
-                                total_time += time_diff
-                                count += 1
-                    
-                    avg_time = total_time / count if count > 0 else 0
-                    
-                    time_by_node.append({
-                        "node_id": node_id,
-                        "node_label": node.get("data", {}).get("label", "Node sans nom"),
-                        "average_time_seconds": avg_time
-                    })
-        
-        # Construire la réponse
+        # Préparer l'objet overview
         overview = {
             "total_sessions": total_sessions,
             "active_sessions": active_sessions,
@@ -631,9 +543,79 @@ async def get_assistant_analytics(assistant_id: str, request: Request, days: int
             "total_leads": total_leads,
             "partial_leads": partial_leads,
             "complete_leads": complete_leads,
-            "average_completion_percentage": average_completion,
-            "average_session_duration": average_duration
+            "avg_completion_percentage": avg_completion_percentage,
+            "avg_session_duration": avg_session_duration,
+            "conversion_rate": conversion_rate,
+            "completion_rate": completion_rate
         }
+        
+        logger.info(f"📊 Overview calculé: {overview}")
+        
+        # Récupérer les données par jour
+        sessions_by_day = {}
+        leads_by_day = {}
+        
+        for i in range(days):
+            date = (end_date - timedelta(days=i)).strftime("%Y-%m-%d")
+            sessions_by_day[date] = 0
+            leads_by_day[date] = 0
+        
+        for item in analytics_data:
+            date = item.get("date")
+            if date in sessions_by_day:
+                sessions_by_day[date] += item.get("sessions_count", 0)
+                leads_by_day[date] += item.get("leads_count", 0)
+        
+        # Récupérer les données de performance par nœud
+        completion_by_node = {}
+        time_by_node = {}
+        
+        for item in analytics_data:
+            node_completions = item.get("node_completions", {})
+            for node_id, data in node_completions.items():
+                if node_id not in completion_by_node:
+                    completion_by_node[node_id] = {"completions": 0, "times": []}
+                
+                completion_by_node[node_id]["completions"] += data.get("completions", 0)
+                completion_by_node[node_id]["times"].extend(data.get("times", []))
+        
+        # Calculer le temps moyen par nœud
+        for node_id, data in completion_by_node.items():
+            times = data.get("times", [])
+            if times:
+                time_by_node[node_id] = sum(times) / len(times)
+            else:
+                time_by_node[node_id] = 0
+        
+        # Récupérer les réponses populaires
+        popular_responses = {}
+        
+        for item in analytics_data:
+            user_responses = item.get("user_responses", {})
+            for node_id, responses in user_responses.items():
+                if node_id not in popular_responses:
+                    popular_responses[node_id] = {}
+                
+                for response, count in responses.items():
+                    if response not in popular_responses[node_id]:
+                        popular_responses[node_id][response] = 0
+                    
+                    popular_responses[node_id][response] += count
+        
+        # Récupérer les sessions récentes avec statut de lead
+        recent_leads = await db[SESSIONS_COLLECTION].find({
+            "assistant_id": {"$in": [str(query_id), public_id]},
+            "lead_status": {"$in": [LeadStatus.PARTIAL, LeadStatus.COMPLETE]},
+            "started_at": {"$gte": start_date, "$lte": end_date}
+        }).sort("started_at", -1).limit(10).to_list(10)
+        
+        # Convertir les ObjectId en string pour la sérialisation JSON
+        for lead in recent_leads:
+            lead["_id"] = str(lead["_id"])
+            if "user_id" in lead and isinstance(lead["user_id"], ObjectId):
+                lead["user_id"] = str(lead["user_id"])
+        
+        logger.info(f"📊 Leads récents trouvés: {len(recent_leads)}")
         
         return {
             "overview": overview,
@@ -641,8 +623,9 @@ async def get_assistant_analytics(assistant_id: str, request: Request, days: int
             "leads_by_day": leads_by_day,
             "completion_by_node": completion_by_node,
             "popular_responses": popular_responses,
-            "average_time_by_node": time_by_node
+            "average_time_by_node": time_by_node,
+            "recent_leads": recent_leads
         }
     except Exception as e:
-        logger.error(f"Erreur lors de la récupération des analytiques: {str(e)}")
+        logger.error(f"Erreur lors de la récupération des analytics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")

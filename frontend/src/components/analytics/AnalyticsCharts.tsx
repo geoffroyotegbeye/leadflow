@@ -1,12 +1,11 @@
 import React from 'react';
 import { 
-  LineChart, Line, BarChart, Bar, PieChart, Pie, 
+  BarChart, Bar, PieChart, Pie, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
   ResponsiveContainer, Cell 
 } from 'recharts';
 
 interface AnalyticsChartsProps {
-  sessionsData: any[];
   completionData: any[];
   responseData: any[];
   loading: boolean;
@@ -15,7 +14,6 @@ interface AnalyticsChartsProps {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({ 
-  sessionsData, 
   completionData, 
   responseData,
   loading 
@@ -23,7 +21,7 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
   if (loading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {[1, 2, 3, 4].map((i) => (
+        {[1, 2].map((i) => (
           <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 h-80">
             <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4"></div>
             <div className="h-64 bg-gray-100 dark:bg-gray-700 rounded animate-pulse"></div>
@@ -35,71 +33,6 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      {/* Graphique des sessions et leads */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Sessions et Leads</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={sessionsData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="date" stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#fff', 
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-              }} 
-            />
-            <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="sessions" 
-              stroke="#3b82f6" 
-              strokeWidth={2}
-              activeDot={{ r: 8 }} 
-              name="Sessions"
-            />
-            <Line 
-              type="monotone" 
-              dataKey="leads" 
-              stroke="#10b981" 
-              strokeWidth={2}
-              activeDot={{ r: 8 }} 
-              name="Leads"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Graphique de taux de conversion */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Taux de Conversion</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={sessionsData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="date" stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#fff', 
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-              }} 
-              formatter={(value: any) => [`${value}%`, 'Taux de conversion']}
-            />
-            <Legend />
-            <Bar 
-              dataKey="conversion" 
-              fill="#8b5cf6" 
-              name="Taux de conversion (%)"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
       {/* Graphique de complétion par étape */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Complétion par Étape</h3>
@@ -154,7 +87,7 @@ const AnalyticsCharts: React.FC<AnalyticsChartsProps> = ({
               nameKey="value"
               label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
             >
-              {responseData.map((entry, index) => (
+              {responseData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>

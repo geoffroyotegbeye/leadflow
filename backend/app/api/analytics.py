@@ -1,7 +1,7 @@
 """
 API pour la gestion des analytics et des statistiques
 """
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -435,3 +435,65 @@ async def get_user_responses(
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des réponses utilisateurs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@router.get("/debug-analytics/{assistant_id}", response_model=dict)
+async def debug_analytics(assistant_id: str, request: Request, days: int = 30):
+    """
+    Endpoint de débogage pour afficher les données d'analytiques brutes pour un assistant
+    """
+    try:
+        db = request.app.state.db
+        
+        # Convertir en ObjectId si c'est un ID MongoDB valide
+        try:
+            if ObjectId.is_valid(assistant_id):
+                query_id = ObjectId(assistant_id)
+            else:
+                # Rechercher l'assistant par public_id pour obtenir son _id
+                assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": assistant_id})
+                if not assistant:
+                    raise HTTPException(status_code=404, detail="Assistant not found")
+                query_id = assistant["_id"]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid assistant ID format: {str(e)}")
+        
+        # Calculer la date de début pour la période spécifiée
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        # Récupérer les données d'analytiques pour la période
+        analytics_data = await db[ANALYTICS_COLLECTION].find({
+            "assistant_id": {"$in": [str(query_id), assistant_id]},
+            "date": {"$gte": start_date.strftime("%Y-%m-%d"), "$lte": end_date.strftime("%Y-%m-%d")}
+        }).to_list(1000)
+        
+        # Récupérer les sessions pour la période
+        sessions_data = await db[SESSIONS_COLLECTION].find({
+            "assistant_id": {"$in": [str(query_id), assistant_id]},
+            "started_at": {"$gte": start_date, "$lte": end_date}
+        }).to_list(1000)
+        
+        # Convertir les ObjectId en string pour la sérialisation JSON
+        for item in analytics_data:
+            item["_id"] = str(item["_id"])
+        
+        for session in sessions_data:
+            session["_id"] = str(session["_id"])
+            if "user_id" in session and isinstance(session["user_id"], ObjectId):
+                session["user_id"] = str(session["user_id"])
+        
+        return {
+            "assistant_id": assistant_id,
+            "query_id": str(query_id),
+            "period": {
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d"),
+                "days": days
+            },
+            "analytics_count": len(analytics_data),
+            "analytics_data": analytics_data,
+            "sessions_count": len(sessions_data),
+            "sessions_data": sessions_data[:10]  # Limiter à 10 sessions pour éviter une réponse trop volumineuse
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -583,6 +583,55 @@ async def debug_assistant(assistant_id: str, request: Request):
             detail="Une erreur est survenue lors du diagnostic de l'assistant"
         )
 
+@router.get("/debug-nodes/{assistant_id}", response_model=dict)
+async def debug_assistant_nodes(assistant_id: str, request: Request):
+    """
+    Endpoint de débogage pour afficher la structure des nœuds d'un assistant
+    """
+    try:
+        db = request.app.state.db
+        
+        # Convertir en ObjectId si c'est un ID MongoDB valide
+        try:
+            if ObjectId.is_valid(assistant_id):
+                query = {"_id": ObjectId(assistant_id)}
+            else:
+                query = {"public_id": assistant_id}
+        except:
+            query = {"public_id": assistant_id}
+        
+        assistant = await db[COLLECTION].find_one(query)
+        
+        if not assistant:
+            raise HTTPException(status_code=404, detail="Assistant not found")
+        
+        # Extraire les informations de débogage des nœuds
+        nodes_debug = []
+        for node in assistant.get("nodes", []):
+            node_debug = {
+                "id": node.get("id"),
+                "type": node.get("type"),
+                "direct_properties": {
+                    "is_partial_lead": node.get("is_partial_lead", False),
+                    "is_complete_lead": node.get("is_complete_lead", False),
+                    "is_final_node": node.get("is_final_node", False)
+                },
+                "data_properties": {
+                    "is_partial_lead": node.get("data", {}).get("is_partial_lead", False),
+                    "is_complete_lead": node.get("data", {}).get("is_complete_lead", False),
+                    "is_final_node": node.get("data", {}).get("is_final_node", False)
+                }
+            }
+            nodes_debug.append(node_debug)
+        
+        return {
+            "assistant_id": assistant_id,
+            "nodes_count": len(nodes_debug),
+            "nodes": nodes_debug
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/public/{public_id}", response_class=HTMLResponse, include_in_schema=False)
 async def get_public_assistant_legacy(public_id: str, request: Request):
     """

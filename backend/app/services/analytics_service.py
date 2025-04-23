@@ -111,6 +111,8 @@ class AnalyticsService:
         assistant_id = session["assistant_id"]
         today = datetime.utcnow().strftime("%Y-%m-%d")
         
+        print(f" [Analytics] Enregistrement du changement de statut de lead pour la session {session_id}: {new_status}")
+        
         # Mettre à jour les compteurs selon le nouveau statut
         update_data = {}
         
@@ -121,6 +123,7 @@ class AnalyticsService:
                     "leads_count": 1
                 }
             }
+            print(f" [Analytics] Incrémentation des leads partiels pour l'assistant {assistant_id}")
         elif new_status == LeadStatus.COMPLETE:
             update_data = {
                 "$inc": {
@@ -131,13 +134,17 @@ class AnalyticsService:
             # Si c'était déjà un lead partiel, ne pas incrémenter le compteur total
             if session.get("lead_status") != LeadStatus.PARTIAL:
                 update_data["$inc"]["leads_count"] = 1
+                print(f" [Analytics] Incrémentation des leads complets pour l'assistant {assistant_id}")
+            else:
+                print(f" [Analytics] Conversion d'un lead partiel en lead complet pour l'assistant {assistant_id}")
         
         if update_data:
-            await db[ANALYTICS_COLLECTION].update_one(
+            result = await db[ANALYTICS_COLLECTION].update_one(
                 {"date": today, "assistant_id": assistant_id},
                 update_data,
                 upsert=True
             )
+            print(f" [Analytics] Résultat de la mise à jour: {result.modified_count} document(s) modifié(s)")
     
     @staticmethod
     async def track_session_end(session_id: str, status: str):
@@ -154,10 +161,14 @@ class AnalyticsService:
         assistant_id = session["assistant_id"]
         today = datetime.utcnow().strftime("%Y-%m-%d")
         
+        print(f" [Analytics] Enregistrement de la fin de session {session_id} avec statut: {status}")
+        
         # Calculer la durée de la session
         started_at = session.get("started_at")
         ended_at = datetime.utcnow()
         duration_seconds = (ended_at - started_at).total_seconds() if started_at else 0
+        
+        print(f" [Analytics] Durée de la session: {duration_seconds} secondes")
         
         # Mettre à jour les compteurs selon le statut
         update_data = {
@@ -171,14 +182,17 @@ class AnalyticsService:
         
         if status == SessionStatus.COMPLETED:
             update_data["$inc"]["completed_sessions"] = 1
+            print(f" [Analytics] Incrémentation des sessions complétées pour l'assistant {assistant_id}")
         elif status == SessionStatus.ABANDONED:
             update_data["$inc"]["abandoned_sessions"] = 1
+            print(f" [Analytics] Incrémentation des sessions abandonnées pour l'assistant {assistant_id}")
         
-        await db[ANALYTICS_COLLECTION].update_one(
+        result = await db[ANALYTICS_COLLECTION].update_one(
             {"date": today, "assistant_id": assistant_id},
             update_data,
             upsert=True
         )
+        print(f" [Analytics] Résultat de la mise à jour: {result.modified_count} document(s) modifié(s)")
     
     @staticmethod
     async def track_node_completion(session_id: str, node_id: str, time_spent: float):

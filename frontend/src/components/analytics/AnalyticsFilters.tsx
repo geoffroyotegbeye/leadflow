@@ -1,16 +1,16 @@
 import React from 'react';
 import { 
   AdjustmentsHorizontalIcon, 
-  CalendarIcon, 
-  ChatBubbleLeftRightIcon 
+  CalendarIcon
 } from '@heroicons/react/24/outline';
+import AssistantSelector from './AssistantSelector';
 
 interface AnalyticsFiltersProps {
   timeRange: number;
   setTimeRange: (range: number) => void;
   assistantId?: string;
   assistantName?: string;
-  onAssistantChange?: () => void;
+  onAssistantChange: (assistantId: string) => void;
   isGlobal: boolean;
 }
 
@@ -41,20 +41,11 @@ const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* Sélection de l'assistant (uniquement pour les analytics globales) */}
-          {isGlobal && onAssistantChange && (
-            <div className="relative">
-              <button
-                onClick={onAssistantChange}
-                className="flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              >
-                <ChatBubbleLeftRightIcon className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-2" />
-                <span className="text-gray-700 dark:text-gray-200">
-                  {assistantId ? 'Changer d\'assistant' : 'Sélectionner un assistant'}
-                </span>
-              </button>
-            </div>
-          )}
+          {/* Sélection de l'assistant */}
+          <AssistantSelector 
+            selectedAssistantId={assistantId} 
+            onAssistantChange={onAssistantChange} 
+          />
           
           {/* Sélection de la période */}
           <div className="relative">

@@ -16,6 +16,10 @@ interface AnalyticsResponse {
     complete_leads: number;
     average_completion_percentage: number;
     average_session_duration: number;
+    sessions_count?: number;
+    leads_count?: number;
+    completion_rate?: number;
+    abandonment_rate?: number;
   };
   sessions_by_day: Record<string, number>;
   leads_by_day: Record<string, number>;
@@ -34,45 +38,50 @@ import AnalyticsFilters from '../components/analytics/AnalyticsFilters';
 const formatChartData = (data: AnalyticsResponse | null) => {
   if (!data) {
     return {
-      sessionsData: [],
       completionData: [],
       responseData: []
     };
   }
 
-  // Formater les données de sessions
-  const sessionsData = Object.entries(data.sessions_by_day).map(([date, count]) => ({
-    date,
-    sessions: count
-  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  // Formater les données de complétion (données fictives si non disponibles)
+  // Formater les données de complétion
   const completionData = data.completion_by_node && data.completion_by_node.length > 0 
     ? data.completion_by_node.map(node => ({
-        name: node.name || `Nœud ${node.id}`,
-        completion: node.completion_rate || 0
+        node_id: node.node_id,
+        node_label: node.node_label || `Nœud ${node.node_id}`,
+        completion_rate: node.completion_rate || 0
       }))
     : [
-        { name: 'Introduction', completion: 95 },
-        { name: 'Qualification', completion: 80 },
-        { name: 'Collecte d\'informations', completion: 65 },
-        { name: 'Présentation', completion: 50 },
-        { name: 'Conclusion', completion: 40 }
+        { node_id: '1', node_label: 'Introduction', completion_rate: 95 },
+        { node_id: '2', node_label: 'Qualification', completion_rate: 80 },
+        { node_id: '3', node_label: 'Collecte d\'informations', completion_rate: 65 },
+        { node_id: '4', node_label: 'Présentation', completion_rate: 50 },
+        { node_id: '5', node_label: 'Conclusion', completion_rate: 40 }
       ];
 
-  // Formater les données de réponses populaires (données fictives si non disponibles)
-  const responseData = data.popular_responses && data.popular_responses.length > 0
-    ? data.popular_responses.map(response => ({
-        question: response.question || 'Question',
-        responses: response.responses || []
-      }))
-    : [
-        { question: 'Préférence de contact', responses: [{ label: 'Email', value: 60 }, { label: 'Téléphone', value: 40 }] },
-        { question: 'Intérêt produit', responses: [{ label: 'Basique', value: 30 }, { label: 'Premium', value: 45 }, { label: 'Pro', value: 25 }] }
-      ];
+  // Formater les données de réponses populaires
+  let responseData: any[] = [];
+  
+  if (data.popular_responses) {
+    // Convertir l'objet en tableau
+    Object.entries(data.popular_responses).forEach(([_, responses]) => {
+      Object.entries(responses as Record<string, number>).forEach(([value, count]) => {
+        responseData.push({ value, count });
+      });
+    });
+  }
+  
+  // Si aucune donnée n'est disponible, utiliser des données fictives
+  if (responseData.length === 0) {
+    responseData = [
+      { value: 'Email', count: 60 },
+      { value: 'Téléphone', count: 40 },
+      { value: 'Basique', count: 30 },
+      { value: 'Premium', count: 45 },
+      { value: 'Pro', count: 25 }
+    ];
+  }
 
   return {
-    sessionsData,
     completionData,
     responseData
   };
@@ -90,6 +99,12 @@ const AnalyticsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<number>(30);
   const [assistantName, setAssistantName] = useState<string>('');
+  const [selectedAssistantId, setSelectedAssistantId] = useState<string | undefined>(assistantId);
+
+  // Mettre à jour l'ID de l'assistant sélectionné quand l'URL change
+  useEffect(() => {
+    setSelectedAssistantId(assistantId);
+  }, [assistantId]);
 
   // Charger les analytics
   useEffect(() => {
@@ -97,41 +112,47 @@ const AnalyticsPage = () => {
       try {
         setLoading(true);
         
+        console.log('🔍 Récupération des analytics pour:', selectedAssistantId || 'global', 'période:', timeRange, 'jours');
+        
         // Récupérer l'aperçu des analytics
-        const overview = await analyticsService.getAnalyticsOverview(timeRange, assistantId);
+        const overview = await analyticsService.getAnalyticsOverview(timeRange, selectedAssistantId);
+        console.log('📊 Aperçu des analytics reçu:', overview);
         
         // Récupérer les données pour les graphiques
-        const chartData = await analyticsService.getStatsChartData(timeRange, assistantId);
+        const chartData = await analyticsService.getStatsChartData(timeRange, selectedAssistantId);
+        console.log('📈 Données des graphiques reçues:', chartData);
         
-        if (assistantId) {
+        if (selectedAssistantId) {
           // Récupérer le nom de l'assistant
           try {
             // Utiliser les sessions pour obtenir des informations sur l'assistant
-            const sessions = await sessionService.getAssistantSessions(assistantId);
+            const sessions = await sessionService.getAssistantSessions(selectedAssistantId);
+            console.log('👤 Sessions de l\'assistant récupérées:', sessions.length, 'sessions trouvées');
+            
             if (sessions.length > 0) {
               // Simplement utiliser l'ID de l'assistant comme nom
-              setAssistantName(`Assistant ${assistantId.substring(0, 6)}`);
+              setAssistantName(`Assistant ${selectedAssistantId.substring(0, 6)}`);
             } else {
               setAssistantName('Assistant');
             }
-          } catch (error) {
-            console.error('Erreur lors de la récupération des détails de l\'assistant:', error);
+          } catch (err) {
+            console.error('❌ Erreur lors de la récupération des sessions de l\'assistant:', err);
             setAssistantName('Assistant');
           }
         }
         
         // Construire les données d'analytics dans le format attendu par les composants
-        const data = {
+        const data: AnalyticsResponse = {
           overview: {
-            total_sessions: overview.sessions_count,
-            active_sessions: 0, // Ces données ne sont plus disponibles dans la nouvelle API
-            completed_sessions: Math.round(overview.sessions_count * overview.completion_rate / 100),
-            abandoned_sessions: Math.round(overview.sessions_count * overview.abandonment_rate / 100),
-            total_leads: overview.leads_count,
-            partial_leads: 0, // Ces données ne sont plus disponibles directement
-            complete_leads: 0, // Ces données ne sont plus disponibles directement
-            average_completion_percentage: overview.completion_rate,
-            average_session_duration: overview.average_session_duration
+            total_sessions: overview.total_sessions || 0,
+            active_sessions: overview.active_sessions || 0,
+            completed_sessions: overview.completed_sessions || 0,
+            abandoned_sessions: overview.abandoned_sessions || 0,
+            total_leads: overview.total_leads || 0,
+            partial_leads: overview.partial_leads || 0,
+            complete_leads: overview.complete_leads || 0,
+            average_completion_percentage: overview.average_completion_percentage || 0,
+            average_session_duration: overview.average_session_duration || 0
           },
           sessions_by_day: chartData.sessionsData.reduce((acc: Record<string, number>, item) => {
             acc[item.date] = item.sessions;
@@ -146,6 +167,7 @@ const AnalyticsPage = () => {
           average_time_by_node: [] // Ces données ne sont plus disponibles dans le même format
         };
         
+        console.log('🔄 Données formatées pour l\'affichage:', data);
         setAnalytics(data);
         setError(null);
       } catch (err) {
@@ -157,34 +179,44 @@ const AnalyticsPage = () => {
     };
 
     fetchAnalytics();
-  }, [assistantId, timeRange]);
+  }, [selectedAssistantId, timeRange]);
   
   // Charger les leads récents
   useEffect(() => {
     const fetchLeads = async () => {
       try {
         setLeadsLoading(true);
-        const recentLeads = await analyticsService.getRecentLeads(10, 0, assistantId, timeRange);
+        console.log('🔍 Récupération des leads pour:', selectedAssistantId || 'global', 'période:', timeRange, 'jours');
+        
+        const recentLeads = await analyticsService.getRecentLeads(10, 0, selectedAssistantId, timeRange);
+        console.log('👥 Leads récents récupérés:', recentLeads.length, 'leads trouvés');
         
         // Utiliser directement les leads récupérés
         setLeads(recentLeads);
       } catch (err) {
-        console.error('Erreur lors de la récupération des leads:', err);
+        console.error('❌ Erreur lors de la récupération des leads:', err);
       } finally {
         setLeadsLoading(false);
       }
     };
     
     fetchLeads();
-  }, [assistantId, timeRange]);
+  }, [selectedAssistantId, timeRange]);
 
   // Formater les données pour les graphiques
   const chartData = formatChartData(analytics);
+  console.log('📊 Données formatées pour les graphiques:', chartData);
 
   // Gérer le changement d'assistant
-  const handleAssistantChange = () => {
-    // Rediriger vers la liste des assistants pour en sélectionner un
-    navigate('/dashboard/chatbots');
+  const handleAssistantChange = (assistantId: string) => {
+    console.log('🔄 Changement d\'assistant:', assistantId);
+    // Rediriger vers la page d'analytiques de l'assistant sélectionné
+    if (assistantId) {
+      navigate(`/dashboard/analytics/${assistantId}`);
+    } else {
+      // Si aucun assistant n'est sélectionné, afficher les analytiques globales
+      navigate('/dashboard/analytics');
+    }
   };
 
   if (loading) {
@@ -221,10 +253,10 @@ const AnalyticsPage = () => {
       <AnalyticsFilters
         timeRange={timeRange}
         setTimeRange={setTimeRange}
-        assistantId={assistantId}
+        assistantId={selectedAssistantId}
         assistantName={assistantName}
         onAssistantChange={handleAssistantChange}
-        isGlobal={!assistantId}
+        isGlobal={!selectedAssistantId}
       />
 
       {/* Affichage des erreurs */}
@@ -241,12 +273,11 @@ const AnalyticsPage = () => {
       <AnalyticsOverviewCards overview={analytics?.overview} loading={loading} />
 
       {/* Graphiques */}
-      <AnalyticsCharts 
-        sessionsData={chartData.sessionsData} 
+      {/* <AnalyticsCharts 
         completionData={chartData.completionData} 
         responseData={chartData.responseData} 
         loading={loading}
-      />
+      /> */}
       
       {/* Tableau des leads récents */}
       <AnalyticsLeadsTable leads={leads} loading={leadsLoading} />
