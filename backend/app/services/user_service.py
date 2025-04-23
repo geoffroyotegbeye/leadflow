@@ -1,47 +1,71 @@
 from typing import Optional, Dict, Any, List
 from bson import ObjectId
 from app.database.mongodb import get_database
-from app.models.auth import UserRegister, UserResponse
+from app.models.Auth.auth import UserRegister
+from app.schemas.Auth.auth_schema import Register, UserResponse, Response
 from app.utils.auth_utils import get_password_hash, verify_password
 from pymongo.errors import DuplicateKeyError
 from fastapi import HTTPException, status
+import random
+import string
+from datetime import timedelta, datetime
 
+# Fonction pour obtenir la collection users
 async def get_user_collection():
-    """Récupère la collection users de la base de données."""
     db = await get_database()
     return db.users
 
-async def create_user(user_data: UserRegister) -> UserResponse:
-    """Crée un nouvel utilisateur dans la base de données."""
+async def get_temp_user_collection():
+    db = await get_database()
+    return db.temp_users
+
+# Fonction pour créer un nouvel utilisateur
+async def create_user(user_data: Register) -> UserResponse:
+    ## Récupérer la collection users
     users = await get_user_collection()
-    
-    # Vérifier si l'email existe déjà
+
+    ## Récupérer la collection temp_users
+    temp_users = await get_temp_user_collection()
+
+
+    # Vérifier si l'email existe déjà dans la table users
     existing_user = await users.find_one({"email": user_data.email})
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Un utilisateur avec cet email existe déjà"
+        return Response(
+            success="false",
+            message="Un utilisateur avec cet email existe déjà",
+            data=None
         )
-    
+
+        # Vérifier si l'email existe déjà dans la table temp_users
+    existing_temp_user = await temp_users.find_one({"email": user_data.email})
+    if  existing_temp_user:
+        return Response(
+            success="false",
+            message="Un utilisateur avec cet email existe déjà hnjj,j" ,
+            data=None
+        )
+
     # Créer le document utilisateur
     user_dict = user_data.dict()
     user_dict["password"] = get_password_hash(user_dict["password"])
     
     try:
-        result = await users.insert_one(user_dict)
+        # Générer 6 caractères aléatoires (chiffres + lettres)
+        code = ''.join(random.choices(string.digits + string.ascii_letters, k=6))
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        user_dict["verification_code"] = code
+        user_dict["verification_code_expires_at"] = expires_at
+        result = await temp_users.insert_one(user_dict)
         
         # Créer l'index unique sur email si c'est le premier utilisateur
-        await users.create_index("email", unique=True)
-        
-        # Récupérer l'utilisateur créé
-        created_user = await users.find_one({"_id": result.inserted_id})
-        
-        # Convertir ObjectId en string pour la réponse
-        created_user["id"] = str(created_user["_id"])
-        del created_user["_id"]
-        del created_user["password"]  # Ne pas renvoyer le mot de passe
-        
-        return UserResponse(**created_user)
+        await temp_users.create_index("email", unique=True)
+
+        return Response(
+            success="true",
+            message="Création de compte en cours",
+            data=None
+        )
     
     except DuplicateKeyError:
         raise HTTPException(

@@ -2,7 +2,7 @@ from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from app.models.auth import Token
+from app.models.Auth.auth import Token
 import os
 from dotenv import load_dotenv
 

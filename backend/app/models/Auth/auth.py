@@ -1,6 +1,28 @@
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 import re
+from datetime import datetime
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+class TempUser(BaseModel):
+    email: EmailStr
+    full_name: str
+    company_name: str
+    password: str
+    created_at: datetime = datetime.utcnow()
+    updated_at: datetime = datetime.utcnow()
+    verification_code: Optional[str] = None
+    verification_code_expires_at: Optional[datetime] = None
+
+class User(BaseModel):
+    email: EmailStr
+    full_name: str
+    company_name: str
+    password: str
+    created_at: datetime = datetime.utcnow()
+    updated_at: datetime = datetime.utcnow()
+    verified_at: datetime = datetime.utcnow()
 
 class UserRegister(BaseModel):
     email: EmailStr

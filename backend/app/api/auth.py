@@ -1,14 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from app.models.auth import UserRegister, UserLogin, UserResponse, ForgotPassword, ResetPassword, TokenResponse, Token
+from app.models.Auth.auth import UserRegister, UserLogin, UserResponse, ForgotPassword, ResetPassword, TokenResponse
 from app.services.user_service import create_user, authenticate_user, get_user_by_email, update_user_password
 from app.utils.auth_utils import create_access_token, decode_token, create_password_reset_token, verify_password_reset_token
-from datetime import datetime, timedelta
 from typing import Optional
-import logging
 import os
 from passlib.context import CryptContext
-from app.database.mongodb import get_database
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -45,10 +42,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Optional[dict
     
     return user
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register")
 async def register(user: UserRegister):
     """Enregistre un nouvel utilisateur."""
     try:
+
         created_user = await create_user(user)
         return created_user
     except HTTPException as e:
