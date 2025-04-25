@@ -64,7 +64,7 @@ const CustomNode: React.FC<NodeProps<NodeData>> = ({ data, selected }) => {
               {data.elements.map((element, index) => (
                 <div key={element.id} className="flow-node-element">
                   <div className="flow-element-type">
-                    {ELEMENT_TYPES[element.type].label}
+                    {ELEMENT_TYPES[element.type]?.label || element.type || 'Élément inconnu'}
                   </div>
                   {element.content && element.type !== 'image' && (
                     <div className="flow-element-content">

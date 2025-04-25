@@ -1,8 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Cookies from 'js-cookie';
 import { User } from '../types/user';
 import { API_URL } from '../config';
+
+// Configuration des cookies
+const TOKEN_COOKIE = 'leadflow_token';
+const USER_COOKIE = 'leadflow_user';
+const COOKIE_EXPIRES = 7; // 7 jours
 
 interface AuthContextType {
   user: User | null;
@@ -31,28 +37,64 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(Cookies.get(TOKEN_COOKIE) || null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const navigate = useNavigate();
 
   // Vérifier si l'utilisateur est authentifié au chargement
   useEffect(() => {
     const checkAuth = async () => {
-      const storedToken = localStorage.getItem('token');
+      const storedToken = Cookies.get(TOKEN_COOKIE);
+      console.log('Vérification du token d\'authentification:', storedToken ? 'Token présent' : 'Aucun token');
+      
+      // Essayer de récupérer l'utilisateur depuis les cookies
+      const storedUser = Cookies.get(USER_COOKIE);
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          console.log('Utilisateur récupéré depuis les cookies:', userData);
+        } catch (e) {
+          console.error('Erreur lors de la récupération de l\'utilisateur depuis les cookies:', e);
+        }
+      }
+      
       if (storedToken) {
         try {
+          console.log('Tentative de vérification du token...');
           const response = await axios.get(`${API_URL}/auth/me`, {
             headers: {
               Authorization: `Bearer ${storedToken}`
             }
           });
+          console.log('Utilisateur authentifié avec succès:', response.data);
           setUser(response.data);
           setToken(storedToken);
+          
+          // Mettre à jour les cookies
+          Cookies.set(TOKEN_COOKIE, storedToken, { expires: COOKIE_EXPIRES, sameSite: 'strict' });
+          Cookies.set(USER_COOKIE, JSON.stringify(response.data), { expires: COOKIE_EXPIRES, sameSite: 'strict' });
         } catch (error) {
           console.error('Erreur lors de la vérification de l\'authentification:', error);
-          localStorage.removeItem('token');
+          Cookies.remove(TOKEN_COOKIE);
+          Cookies.remove(USER_COOKIE);
           setToken(null);
           setUser(null);
+          
+          // Rediriger vers la page de connexion si on est sur une page protégée
+          if (window.location.pathname.includes('/dashboard') || 
+              window.location.pathname.includes('/editor') ||
+              window.location.pathname.includes('/settings')) {
+            navigate('/login');
+          }
+        }
+      } else {
+        // Rediriger vers la page de connexion si on est sur une page protégée
+        if (window.location.pathname.includes('/dashboard') || 
+            window.location.pathname.includes('/editor') ||
+            window.location.pathname.includes('/settings')) {
+          console.log('Accès à une page protégée sans authentification, redirection vers login');
+          navigate('/login');
         }
       }
       setIsLoading(false);
@@ -67,7 +109,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await axios.post(`${API_URL}/auth/login/email`, { email, password });
       const { access_token, user: userData } = response.data;
       
-      localStorage.setItem('token', access_token);
+      // Stocker dans les cookies
+      Cookies.set(TOKEN_COOKIE, access_token, { expires: COOKIE_EXPIRES, sameSite: 'strict' });
+      Cookies.set(USER_COOKIE, JSON.stringify(userData), { expires: COOKIE_EXPIRES, sameSite: 'strict' });
       setToken(access_token);
       setUser(userData);
       navigate('/dashboard');
@@ -80,7 +124,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    Cookies.remove(TOKEN_COOKIE);
+    Cookies.remove(USER_COOKIE);
     setToken(null);
     setUser(null);
     navigate('/login');
@@ -98,7 +143,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const { access_token, user: userData } = response.data;
       
-      localStorage.setItem('token', access_token);
+      // Stocker dans les cookies
+      Cookies.set(TOKEN_COOKIE, access_token, { expires: COOKIE_EXPIRES, sameSite: 'strict' });
+      Cookies.set(USER_COOKIE, JSON.stringify(userData), { expires: COOKIE_EXPIRES, sameSite: 'strict' });
       setToken(access_token);
       setUser(userData);
       navigate('/dashboard');

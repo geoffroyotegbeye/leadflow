@@ -84,7 +84,7 @@ def assistant_to_response(assistant: Dict[str, Any]) -> Dict[str, Any]:
         return assistant
 
 @router.post("/", response_model=AssistantResponse, status_code=status.HTTP_201_CREATED)
-async def create_assistant(assistant: AssistantCreate, request: Request):
+async def create_assistant(assistant: AssistantCreate, request: Request, user = Depends(get_current_user)):
     """
     Crée un nouvel assistant avec les nodes et edges fournis.
     """
@@ -98,6 +98,7 @@ async def create_assistant(assistant: AssistantCreate, request: Request):
         assistant_dict["created_at"] = now
         assistant_dict["updated_at"] = now
         assistant_dict["is_published"] = False
+        assistant_dict["user_id"] = user["id"]  # Associer l'assistant à l'utilisateur connecté
         
         # Insérer le document
         result = await collection.insert_one(assistant_dict)
@@ -122,7 +123,7 @@ async def create_assistant(assistant: AssistantCreate, request: Request):
         )
 
 @router.get("/", response_model=List[AssistantResponse])
-async def get_assistants(request: Request):
+async def get_assistants(request: Request, user = Depends(get_current_user)):
     """
     Récupère tous les assistants.
     """
@@ -130,8 +131,8 @@ async def get_assistants(request: Request):
         db = await get_database()
         collection = db[COLLECTION]
         
-        # Récupérer tous les assistants
-        assistants = await collection.find().to_list(length=100)
+        # Récupérer uniquement les assistants de l'utilisateur connecté
+        assistants = await collection.find({"user_id": user["id"]}).to_list(length=100)
         
         # Convertir en format de réponse
         response_data = [assistant_to_response(assistant) for assistant in assistants]
@@ -150,7 +151,7 @@ async def get_assistants(request: Request):
         )
 
 @router.get("/{assistant_id}", response_model=AssistantResponse)
-async def get_assistant(assistant_id: str, request: Request):
+async def get_assistant(assistant_id: str, request: Request, user = Depends(get_current_user)):
     """
     Récupère un assistant par son ID.
     """
@@ -167,8 +168,8 @@ async def get_assistant(assistant_id: str, request: Request):
                 detail="ID d'assistant invalide"
             )
         
-        # Récupérer l'assistant
-        assistant = await collection.find_one({"_id": object_id})
+        # Récupérer l'assistant de l'utilisateur connecté
+        assistant = await collection.find_one({"_id": object_id, "user_id": user["id"]})
         
         if not assistant:
             raise HTTPException(
@@ -195,7 +196,7 @@ async def get_assistant(assistant_id: str, request: Request):
         )
 
 @router.put("/{assistant_id}", response_model=AssistantResponse)
-async def update_assistant(assistant_id: str, assistant_update: AssistantUpdate, request: Request):
+async def update_assistant(assistant_id: str, assistant_update: AssistantUpdate, request: Request, user = Depends(get_current_user)):
     """
     Met à jour un assistant existant.
     """
@@ -212,8 +213,8 @@ async def update_assistant(assistant_id: str, assistant_update: AssistantUpdate,
                 detail="ID d'assistant invalide"
             )
         
-        # Récupérer l'assistant
-        assistant = await collection.find_one({"_id": object_id})
+        # Récupérer l'assistant de l'utilisateur connecté
+        assistant = await collection.find_one({"_id": object_id, "user_id": user["id"]})
         
         if not assistant:
             raise HTTPException(
@@ -250,7 +251,7 @@ async def update_assistant(assistant_id: str, assistant_update: AssistantUpdate,
         )
 
 @router.delete("/{assistant_id}", response_model=dict)
-async def delete_assistant(assistant_id: str, request: Request):
+async def delete_assistant(assistant_id: str, request: Request, user = Depends(get_current_user)):
     """
     Supprime un assistant existant.
     """
@@ -267,8 +268,8 @@ async def delete_assistant(assistant_id: str, request: Request):
                 detail="ID d'assistant invalide"
             )
         
-        # Récupérer l'assistant
-        assistant = await collection.find_one({"_id": object_id})
+        # Récupérer l'assistant de l'utilisateur connecté
+        assistant = await collection.find_one({"_id": object_id, "user_id": user["id"]})
         
         if not assistant:
             raise HTTPException(

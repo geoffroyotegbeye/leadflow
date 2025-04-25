@@ -71,6 +71,7 @@ class AssistantModel(BaseModel):
     public_id: Optional[str] = None
     public_url: Optional[str] = None
     embed_script: Optional[str] = None
+    user_id: Optional[str] = None  # ID de l'utilisateur propriétaire
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
@@ -100,13 +101,14 @@ class AssistantResponse(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
-    nodes: List[Node]
-    edges: List[Edge]
+    nodes: List[Node] = []
+    edges: List[Edge] = []
     is_published: bool = False
     publish_date: Optional[datetime] = None
     public_id: Optional[str] = None
     public_url: Optional[str] = None
     embed_script: Optional[str] = None
+    user_id: Optional[str] = None  # ID de l'utilisateur propriétaire
     created_at: datetime
     updated_at: datetime
 

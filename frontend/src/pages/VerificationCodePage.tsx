@@ -103,7 +103,7 @@ const VerificationCodePage: React.FC = () => {
                         onKeyDown={(e) => handleKeyDown(index, e)}
                         className="w-12 h-12 text-center text-2xl font-semibold rounded-xl
                           bg-white/10 dark:bg-gray-800/30
-                          border border-white/10 dark:border-gray-700/30
+                          border border-gray-300/50 dark:border-gray-700/30
                           text-gray-800 dark:text-gray-200
                           backdrop-blur-sm
                           focus:outline-none focus:ring-2 focus:ring-blue-500/50 dark:focus:ring-blue-400/50

@@ -117,7 +117,7 @@ async def get_analytics_overview(
 
 @router.get("/time-series", response_model=Dict[str, List[Dict[str, Any]]])
 async def get_analytics_time_series(
-    days: int = Query(30, description="Nombre de jours à analyser"),
+    days: str = Query("30", description="Nombre de jours à analyser (format: 30 ou 30d)"),
     assistant_id: Optional[str] = Query(None, description="ID de l'assistant à analyser"),
     user = Depends(get_current_user)
 ):
@@ -128,7 +128,18 @@ async def get_analytics_time_series(
         db = await get_database()
         
         # Calculer la date de début
-        start_date = datetime.utcnow() - timedelta(days=days)
+        # Convertir le paramètre days en entier
+        try:
+            # Si le format est comme "7d", extraire le nombre
+            if isinstance(days, str) and days.endswith('d'):
+                days_value = int(days[:-1])
+            else:
+                days_value = int(days)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Le paramètre 'days' doit être un nombre entier ou au format '7d'")
+            
+        # Calculer la date de début
+        start_date = datetime.utcnow() - timedelta(days=days_value)
         
         # Construire la requête de base
         match_query = {}
@@ -217,7 +228,18 @@ async def get_recent_leads(
         db = await get_database()
         
         # Calculer la date de début
-        start_date = datetime.utcnow() - timedelta(days=days)
+        # Convertir le paramètre days en entier
+        try:
+            # Si le format est comme "7d", extraire le nombre
+            if isinstance(days, str) and days.endswith('d'):
+                days_value = int(days[:-1])
+            else:
+                days_value = int(days)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Le paramètre 'days' doit être un nombre entier ou au format '7d'")
+            
+        # Calculer la date de début
+        start_date = datetime.utcnow() - timedelta(days=days_value)
         
         # Construire la requête
         match_query = {

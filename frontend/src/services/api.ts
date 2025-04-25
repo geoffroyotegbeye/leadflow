@@ -1,5 +1,9 @@
 import axios, { AxiosError } from 'axios';
 import { Node, Edge } from 'reactflow';
+import Cookies from 'js-cookie';
+
+// Configuration des cookies
+const TOKEN_COOKIE = 'leadflow_token';
 
 // Configuration de l'API
 // Avec Vite, les variables d'environnement sont accessibles via import.meta.env
@@ -19,6 +23,21 @@ const apiClient = axios.create({
 // Intercepteur pour les requêtes
 apiClient.interceptors.request.use(
   (config) => {
+    // Ajouter le token d'authentification depuis les cookies
+    const token = Cookies.get(TOKEN_COOKIE);
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+      console.log(`🔒 Token d'authentification ajouté pour ${config.method?.toUpperCase()} ${config.url}`);
+    } else {
+      console.warn(`⚠️ Aucun token d'authentification trouvé pour ${config.method?.toUpperCase()} ${config.url}`);
+      // Vérifier si l'utilisateur est sur une page qui nécessite l'authentification
+      if (window.location.pathname.includes('/dashboard') || 
+          window.location.pathname.includes('/editor') ||
+          window.location.pathname.includes('/settings')) {
+        console.error('❌ Tentative d\'accès à une ressource protégée sans authentification');
+      }
+    }
+    
     console.log(`🔄 Requête API: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
@@ -94,15 +113,9 @@ const AssistantService = {
   async getAll(): Promise<Assistant[]> {
     try {
       console.log('🔍 Récupération de tous les assistants...');
-      // Utiliser directement axios pour cette requête pour éviter les problèmes potentiels
-      const response = await axios.get(`${API_URL}/assistants`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      });
-      console.log(response.data);
+      // Utiliser apiClient pour bénéficier de l'intercepteur d'authentification
+      const response = await apiClient.get('/assistants/');
+      console.log('Assistants récupérés avec succès:', response.data);
       return response.data;
     } catch (error: any) {
       logError('Erreur lors de la récupération des assistants', error);
@@ -114,14 +127,7 @@ const AssistantService = {
   async getById(id: string): Promise<Assistant> {
     try {
       console.log(`🔍 Récupération de l'assistant ${id}...`);
-      // Utiliser directement axios pour cette requête également
-      const response = await axios.get(`${API_URL}/assistants/${id}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      });
+      const response = await apiClient.get(`/assistants/${id}`);
       console.log(`✅ Assistant ${id} récupéré avec succès:`, response.data.name);
       return response.data;
     } catch (error: any) {
@@ -134,13 +140,7 @@ const AssistantService = {
   async create(assistant: Assistant): Promise<Assistant> {
     try {
       console.log('📝 Création d\'un nouvel assistant...');
-      const response = await axios.post(`${API_URL}/assistants`, assistant, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 15000 // Donner plus de temps pour la création
-      });
+      const response = await apiClient.post('/assistants/', assistant);
       console.log('✅ Assistant créé avec succès:', response.data.id);
       return response.data;
     } catch (error: any) {
@@ -153,13 +153,7 @@ const AssistantService = {
   async update(id: string, assistant: Partial<Assistant>): Promise<Assistant> {
     try {
       console.log(`📝 Mise à jour de l'assistant ${id}...`);
-      const response = await axios.put(`${API_URL}/assistants/${id}`, assistant, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 15000
-      });
+      const response = await apiClient.put(`/assistants/${id}`, assistant);
       console.log(`✅ Assistant ${id} mis à jour avec succès`);
       return response.data;
     } catch (error: any) {
@@ -172,13 +166,7 @@ const AssistantService = {
   async delete(id: string): Promise<void> {
     try {
       console.log(`🚮 Suppression de l'assistant ${id}...`);
-      await axios.delete(`${API_URL}/assistants/${id}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      });
+      await apiClient.delete(`/assistants/${id}`);
       console.log(`✅ Assistant ${id} supprimé avec succès`);
     } catch (error: any) {
       logError(`Erreur lors de la suppression de l'assistant ${id}`, error);
@@ -196,23 +184,13 @@ const AssistantService = {
       const dataSize = JSON.stringify(data).length;
       console.log(`Taille des données: ${(dataSize / 1024).toFixed(2)} KB`);
       
-      // Configuration de la requête
-      let timeout = 30000; // 30 secondes par défaut
-      
-      // Si les données sont volumineuses, augmenter le timeout
+      // Si les données sont volumineuses, afficher un avertissement
       if (dataSize > 1024 * 1024) { // Plus de 1MB
-        timeout = 60000; // 60 secondes pour les gros flowcharts
-        console.log('⚠️ Données volumineuses, timeout augmenté à 60s');
+        console.log('⚠️ Données volumineuses, la requête peut prendre plus de temps');
       }
       
-      // Utiliser axios directement
-      const response = await axios.put(`${API_URL}/assistants/${id}`, data, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: timeout
-      });
+      // Utiliser apiClient avec l'intercepteur d'authentification
+      const response = await apiClient.put(`/assistants/${id}`, data);
       
       console.log(`✅ Flowchart de l'assistant ${id} sauvegardé avec succès`);
       return response.data;
@@ -232,14 +210,8 @@ const AssistantService = {
         throw new Error('Le fichier JSON ne contient pas les données nécessaires (name, nodes, edges)');
       }
       
-      // Créer l'assistant
-      const response = await axios.post(`${API_URL}/assistants`, jsonData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 30000 // Donner plus de temps pour l'importation
-      });
+      // Créer l'assistant avec apiClient
+      const response = await apiClient.post('/assistants/', jsonData);
       
       console.log('✅ Assistant importé avec succès:', response.data.id);
       return response.data;
@@ -253,13 +225,7 @@ const AssistantService = {
   async publishAssistant(id: string, isPublished: boolean): Promise<Assistant> {
     try {
       console.log(`${isPublished ? '💬 Publication' : '🔒 Dépublication'} de l'assistant ${id}...`);
-      const response = await axios.put(`${API_URL}/assistants/${id}/publish`, { is_published: isPublished }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 15000
-      });
+      const response = await apiClient.put(`/assistants/${id}/publish`, { is_published: isPublished });
       console.log(`✅ Assistant ${id} ${isPublished ? 'publié' : 'dépublié'} avec succès`);
       return response.data;
     } catch (error: any) {
@@ -272,13 +238,7 @@ const AssistantService = {
   async getEmbedScript(id: string): Promise<EmbedScriptResponse> {
     try {
       console.log(`💻 Génération du script d'intégration pour l'assistant ${id}...`);
-      const response = await axios.get(`${API_URL}/assistants/${id}/embed`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      });
+      const response = await apiClient.get(`/assistants/${id}/embed`);
       console.log(`✅ Script d'intégration généré avec succès`);
       return response.data;
     } catch (error: any) {
