@@ -218,6 +218,10 @@ const FlowEditor = () => {
   const onConnect = useCallback(
     (params: Connection) => {
       // Vérifier si la connexion provient d'un handle d'option
+      if (!params.source || !params.target) {
+        console.warn('Tentative de création d\'une connexion avec source ou cible manquante', params);
+        return;
+      }
       const isOptionConnection = params.sourceHandle && params.sourceHandle.startsWith('option-');
 
       // Créer la connexion avec le style approprié
