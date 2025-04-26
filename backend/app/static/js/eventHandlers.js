@@ -11,6 +11,25 @@ export const setNodeProcessor = (processor) => {
   processNodeElements = processor;
 };
 
+// Fonction utilitaire pour tracker chaque message/question/réponse
+async function trackMessage(sessionId, content, isQuestion, messageType = "text", nodeId = null) {
+  try {
+    await fetch(`${baseUrl}/api/analytics/track_message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        content: content,
+        is_question: isQuestion,
+        message_type: messageType,
+        node_id: nodeId
+      })
+    });
+  } catch (err) {
+    console.error('Erreur lors du tracking du message:', err);
+  }
+}
+
 // Gérer le clic sur une option
 const handleOptionClick = async (event) => {
   const button = event.currentTarget;
@@ -49,28 +68,14 @@ const handleOptionClick = async (event) => {
     timestamp: Date.now()
   });
   
-  // Envoyer la sélection au backend pour les analytics
+  // Tracking analytique
   if (state.sessionId) {
-    try {
-      await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: 'user',
-          content: option,
-          content_type: 'option',
-          node_id: message.nodeId,
-          metadata: {
-            option_text: option,
-            timestamp: Date.now()
-          }
-        })
-      });
-    } catch (error) {
-      console.error('Erreur lors de l\'enregistrement de la sélection:', error);
+    // Tracker la question affichée (si pas déjà trackée)
+    if (message.content && message.nodeId) {
+      await trackMessage(state.sessionId, message.content, true, message.type || 'option', message.nodeId);
     }
+    // Tracker la réponse utilisateur
+    await trackMessage(state.sessionId, option, false, 'option', message.nodeId);
   }
   
   // Désactiver tous les boutons d'options
@@ -139,52 +144,15 @@ const handleFormSubmit = async (event) => {
     return;
   }
   
-  // Formater les données pour l'affichage
-  const formattedContent = Object.entries(formValues)
-    .map(([key, value]) => {
-      // Récupérer le label du champ si disponible
-      const field = form.querySelector(`[name="${key}"]`);
-      const label = field ? field.previousElementSibling?.textContent || key : key;
-      return `${label}: ${value}`;
-    })
-    .join('\n');
-  
-  // Ajouter le message utilisateur
-  addMessage({
-    id: `user-form-${Date.now()}`,
-    content: formattedContent,
-    type: 'form',
-    sender: 'user',
-    timestamp: Date.now()
-  });
-  
-  // Désactiver le formulaire
-  form.querySelectorAll('input, select, textarea, button').forEach(el => {
-    el.disabled = true;
-  });
-  
-  // Envoyer les données au backend
+  // Tracking analytique
   if (state.sessionId) {
-    try {
-      await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: 'user',
-          content: formattedContent,
-          content_type: 'form',
-          node_id: state.currentNodeId,
-          metadata: {
-            form_values: formValues,
-            timestamp: Date.now()
-          }
-        })
-      });
-    } catch (error) {
-      console.error('Erreur lors de l\'enregistrement du message:', error);
+    // Tracker la question affichée (si pas déjà trackée)
+    const message = state.messages.find(msg => msg.id === messageId);
+    if (message && message.content && message.nodeId) {
+      await trackMessage(state.sessionId, message.content, true, 'form', message.nodeId);
     }
+    // Tracker la réponse utilisateur (formulaire complet)
+    await trackMessage(state.sessionId, JSON.stringify(formValues), false, 'form', message?.nodeId || state.currentNodeId);
   }
   
   // Trouver le nœud suivant
@@ -243,28 +211,15 @@ const handleInlineInputSubmit = async (event) => {
   inputField.disabled = true;
   form.querySelector('button')?.setAttribute('disabled', 'true');
   
-  // Envoyer les données au backend
+  // Tracking analytique
   if (state.sessionId) {
-    try {
-      await fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: 'user',
-          content: inputValue,
-          content_type: 'text',
-          node_id: state.currentNodeId,
-          metadata: {
-            input_type: inputField.type,
-            timestamp: Date.now()
-          }
-        })
-      });
-    } catch (error) {
-      console.error('Erreur lors de l\'enregistrement du message:', error);
+    // Tracker la question affichée (si pas déjà trackée)
+    const message = state.messages.find(msg => msg.id === messageId);
+    if (message && message.content && message.nodeId) {
+      await trackMessage(state.sessionId, message.content, true, 'text', message.nodeId);
     }
+    // Tracker la réponse utilisateur
+    await trackMessage(state.sessionId, inputValue, false, inputType, message?.nodeId || state.currentNodeId);
   }
   
   // Trouver le nœud suivant
@@ -282,7 +237,7 @@ const handleInlineInputSubmit = async (event) => {
 };
 
 // Gérer l'envoi d'un message par l'utilisateur
-const handleSendMessage = () => {
+const handleSendMessage = async () => {
   const messageInput = document.getElementById('message-input');
   const messageText = messageInput.value.trim();
   
@@ -300,25 +255,15 @@ const handleSendMessage = () => {
   // Vider le champ de saisie
   messageInput.value = '';
   
-  // Envoyer le message au backend
+  // Tracking analytique
   if (state.sessionId) {
-    fetch(`${baseUrl}/api/sessions/${state.sessionId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        sender: 'user',
-        content: messageText,
-        content_type: 'text',
-        node_id: state.currentNodeId,
-        metadata: {
-          timestamp: Date.now()
-        }
-      })
-    }).catch(error => {
-      console.error('Erreur lors de l\'enregistrement du message:', error);
-    });
+    // Tracker la question affichée (si pas déjà trackée)
+    const currentNode = state.flowData.nodes.find(node => node.id === state.currentNodeId);
+    if (currentNode && currentNode.question) {
+      await trackMessage(state.sessionId, currentNode.question, true, 'text', currentNode.id);
+    }
+    // Tracker la réponse utilisateur
+    await trackMessage(state.sessionId, messageText, false, 'text', state.currentNodeId);
   }
 };
 

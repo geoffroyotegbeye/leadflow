@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import analyticsService, { LeadInfo } from '../services/analyticsService';
 import sessionService from '../services/sessionService';
+import AssistantService, { Assistant } from '../services/api';
 
 // Interface pour les données d'analytics formatées pour les composants
 interface AnalyticsResponse {
@@ -100,6 +101,7 @@ const AnalyticsPage = () => {
   const [timeRange, setTimeRange] = useState<number>(30);
   const [assistantName, setAssistantName] = useState<string>('');
   const [selectedAssistantId, setSelectedAssistantId] = useState<string | undefined>(assistantId);
+  const [assistants, setAssistants] = useState<Assistant[]>([]);
 
   // Mettre à jour l'ID de l'assistant sélectionné quand l'URL change
   useEffect(() => {
@@ -181,27 +183,64 @@ const AnalyticsPage = () => {
     fetchAnalytics();
   }, [selectedAssistantId, timeRange]);
   
-  // Charger les leads récents
+  // Charger les assistants liés à l'utilisateur connecté
+  useEffect(() => {
+    const fetchAssistants = async () => {
+      try {
+        const data = await AssistantService.getAll();
+        setAssistants(data);
+      } catch (e) {
+        setAssistants([]);
+      }
+    };
+    fetchAssistants();
+  }, []);
+
+  // Récupérer les leads récents avec leurs conversations complètes
   useEffect(() => {
     const fetchLeads = async () => {
       try {
+        console.log('🔍 Début de la récupération des leads pour:', selectedAssistantId || 'vue globale');
         setLeadsLoading(true);
-        console.log('🔍 Récupération des leads pour:', selectedAssistantId || 'global', 'période:', timeRange, 'jours');
         
-        const recentLeads = await analyticsService.getRecentLeads(10, 0, selectedAssistantId, timeRange);
-        console.log('👥 Leads récents récupérés:', recentLeads.length, 'leads trouvés');
-        
-        // Utiliser directement les leads récupérés
-        setLeads(recentLeads);
-      } catch (err) {
-        console.error('❌ Erreur lors de la récupération des leads:', err);
+        if (selectedAssistantId) {
+          // Vue spécifique à un assistant - récupérer les conversations complètes
+          console.log('🔍 Récupération des leads avec conversations pour l\'assistant:', selectedAssistantId);
+          const leadsWithConversations = await analyticsService.getLeadsWithConversations(selectedAssistantId, 'complete');
+          console.log('📊 Leads avec conversations récupérés:', leadsWithConversations.length, leadsWithConversations);
+          
+          // Transformer les données pour correspondre au format LeadInfo
+          const formattedLeads = leadsWithConversations.map((lead: any) => ({
+            id: lead.id,
+            assistant_name: assistantName || 'Assistant',
+            lead_status: lead.lead_status,
+            created_at: lead.started_at,
+            completion_percentage: lead.completion_percentage,
+            lead_info: lead.lead_info || {},
+            user_info: lead.user_info || {},
+            // Ajouter les messages pour l'affichage de la conversation
+            messages: lead.messages || []
+          }));
+          
+          console.log('📋 Leads formatés:', formattedLeads.length, formattedLeads);
+          setLeads(formattedLeads);
+        } else {
+          // Pour la vue globale, utiliser la méthode existante
+          console.log('🔍 Récupération des leads récents pour la vue globale');
+          const recentLeads = await analyticsService.getRecentLeads(10, 0, selectedAssistantId, timeRange);
+          console.log('📊 Leads récents récupérés:', recentLeads.length, recentLeads);
+          setLeads(recentLeads);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la récupération des leads:', error);
+        setLeads([]);
       } finally {
         setLeadsLoading(false);
       }
     };
     
     fetchLeads();
-  }, [selectedAssistantId, timeRange]);
+  }, [selectedAssistantId, assistantName, timeRange]);
 
   // Formater les données pour les graphiques
   const chartData = formatChartData(analytics);
@@ -258,7 +297,7 @@ const AnalyticsPage = () => {
         onAssistantChange={handleAssistantChange}
         isGlobal={!selectedAssistantId}
       />
-
+      {/* Pas besoin d'un second sélecteur ici, car AnalyticsFilters contient déjà un AssistantSelector */}
       {/* Affichage des erreurs */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-800 dark:text-red-200 rounded-lg p-4 mb-8">
@@ -270,7 +309,7 @@ const AnalyticsPage = () => {
       )}
 
       {/* Vue d'ensemble */}
-      <AnalyticsOverviewCards overview={analytics?.overview} loading={loading} />
+      <AnalyticsOverviewCards overview={analytics.overview} loading={loading} />
 
       {/* Graphiques */}
       {/* <AnalyticsCharts 

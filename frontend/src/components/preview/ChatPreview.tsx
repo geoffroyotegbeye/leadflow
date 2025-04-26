@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { XMarkIcon, ArrowPathIcon, UserCircleIcon, PaperAirplaneIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from '@heroicons/react/24/outline';
 import AssistantService from '../../services/api';
+import sessionService from '../../services/sessionService';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import './ChatPreview.css';
 import { useAssistantStore } from '../../stores/assistantStore';
 import InlineMultiFieldForm from './InlineMultiFieldForm';
+import { NodeType } from '../flowchart/NodeTypes';
 
 // Composant pour formulaire multi-champs dans le chat
 interface InlineMultiFieldFormMessageProps {
@@ -32,7 +34,7 @@ const InlineMultiFieldFormMessage: React.FC<InlineMultiFieldFormMessageProps> = 
     const formattedContent = Object.entries(values)
       .map(([key, value]) => {
         // Récupérer le label du champ si disponible
-        const field = element.formFields?.find(f => f.name === key);
+        const field = element.formFields?.find((f: {name: string, label?: string}) => f.name === key);
         const label = field?.label || key;
         return `${label}: ${value}`;
       })
@@ -216,26 +218,118 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   const [isLoading, setIsLoading] = useState(true);
   const [expandedView, setExpandedView] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
-  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  // const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
+  // Traiter les éléments d'un nœud
+  const processNodeElements = useCallback((node: any) => {
+    if (!node.data?.elements) return;
+    
+    // Vérifier si c'est un nœud de type END
+    const isEndNode = node.data.type === NodeType.END || node.data.type === 'end';
+    
+    // Si c'est un nœud de fin, marquer la session comme terminée
+    if (isEndNode && sessionId) {
+      console.log('%c[DEBUG] Nœud de fin détecté, marquage de la session comme terminée', 'background: #ff0000; color: white; font-weight: bold');
+      console.log('%c[DEBUG] Session ID:', 'background: #ff0000; color: white', sessionId);
+      console.log('%c[DEBUG] Type de nœud:', 'background: #ff0000; color: white', node.data.type);
+      
+      // Appel au service pour terminer la session
+      sessionService.endSession(sessionId)
+        .then(response => {
+          console.log('%c[DEBUG] Session terminée avec succès:', 'background: #00ff00; color: black; font-weight: bold', response);
+          // Afficher une alerte pour confirmer la fin de session
+          alert(`Session terminée avec succès! ID: ${sessionId}`);
+        })
+        .catch(error => {
+          console.error('%c[DEBUG] Erreur lors de la fin de session:', 'background: #ff0000; color: white; font-weight: bold', error);
+          alert(`Erreur lors de la fin de session: ${error.message}`);
+        });
+    }
+
+    const processSequentially = (elements: any[], index: number) => {
+      if (index >= elements.length) return;
+      const element = elements[index];
+      const newMessage: ChatMessage = {
+        id: `bot-${Date.now()}-${index}`,
+        content: element.content || '',
+        type: element.type,
+        sender: 'bot',
+        timestamp: Date.now(),
+        isTyping: true,
+        visible: false
+      };
+      
+      // Stocker les données de l'élément dans le message
+      newMessage.elementData = element;
+      
+      // Si c'est une question avec des options, ajouter les options au message
+      if (element.type === 'question' && element.options && element.options.length > 0) {
+        newMessage.options = element.options.map((opt: any) => opt.text);
+      }
+      // Si c'est une entrée libre (input), logger l'élément
+      else if (element.type === 'input') {
+        console.log('Élément input détecté:', element);
+      }
+      // Si c'est un média (image, vidéo, audio, fichier), stocker l'URL
+      else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
+        console.log(`Élément ${element.type} détecté:`, element);
+      }
+      setMessages(prev => [...prev, newMessage]);
+      // Après un délai, marquer le message comme terminé (plus en train d'être tapé)
+      setTimeout(() => {
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+          )
+        );
+        // Puis afficher le message suivant
+        setTimeout(() => {
+          processSequentially(elements, index + 1);
+        }, 600); // Délai court entre chaque message
+      }, 1500 + Math.random() * 800);
+    };
+    processSequentially(node.data.elements, 0);
+  }, [sessionId]);
+
   // Initialiser la conversation avec le nœud de départ
   const initializeChat = useCallback(() => {
-    if (!flowData.nodes.length) return;
-    
-    // Trouver le nœud de départ
-    const startNode = flowData.nodes.find(node => node.data?.type === 'start');
-    if (startNode) {
-      setCurrentNodeId(startNode.id);
-      
-      // Afficher les éléments du nœud de départ
-      if (startNode.data?.elements && startNode.data.elements.length > 0) {
-        processNodeElements(startNode);
-      }
+    if (!flowData.nodes.length || !assistantId) {
+      console.log('%c[DEBUG] Impossible d\'initialiser le chat: données manquantes', 'background: #ff0000; color: white');
+      console.log('%c[DEBUG] flowData.nodes.length:', 'background: #ff0000; color: white', flowData.nodes.length);
+      console.log('%c[DEBUG] assistantId:', 'background: #ff0000; color: white', assistantId);
+      return;
     }
-  }, [flowData.nodes]);
+    
+    console.log('%c[DEBUG] Initialisation du chat, création d\'une nouvelle session', 'background: #0000ff; color: white; font-weight: bold');
+    console.log('%c[DEBUG] Assistant ID:', 'background: #0000ff; color: white', assistantId);
+    
+    // Créer une nouvelle session
+    sessionService.createSession(assistantId)
+      .then(session => {
+        console.log('%c[DEBUG] Nouvelle session créée avec succès:', 'background: #00ff00; color: black; font-weight: bold', session);
+        setSessionId(session.id);
+        
+        // Trouver le nœud de départ
+        const startNode = flowData.nodes.find(node => node.data?.type === 'start');
+        console.log('%c[DEBUG] Nœud de départ trouvé:', 'background: #0000ff; color: white', startNode);
+        
+        if (startNode) {
+          setCurrentNodeId(startNode.id);
+          processNodeElements(startNode);
+        } else {
+          console.error('%c[DEBUG] Aucun nœud de départ trouvé dans le flowData', 'background: #ff0000; color: white; font-weight: bold');
+        }
+      })
+      .catch(error => {
+        console.error('%c[DEBUG] Erreur lors de la création de la session:', 'background: #ff0000; color: white; font-weight: bold', error);
+        alert(`Erreur lors de la création de la session: ${error.message}`);
+      });
+  }, [flowData, processNodeElements, assistantId]);
+
   
   // Faire défiler vers le bas quand de nouveaux messages arrivent
   const scrollToBottom = () => {
@@ -247,7 +341,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   }, [messages]);
 
   // Utiliser le store Zustand pour accéder aux données du flowchart
-  const { nodes: storeNodes, edges: storeEdges, isLoading: storeLoading } = useAssistantStore();
+  const { nodes: storeNodes, edges: storeEdges } = useAssistantStore();
   
   // Charger le flowchart depuis le store
   useEffect(() => {
@@ -315,56 +409,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     }
   }, [messages, currentNodeId, assistantId]);
 
-
-  // Traiter les éléments d'un nœud
-  const processNodeElements = useCallback((node: any) => {
-    if (!node.data?.elements) return;
-
-    const processSequentially = (elements: any[], index: number) => {
-      if (index >= elements.length) return;
-      const element = elements[index];
-      const newMessage: ChatMessage = {
-        id: `bot-${Date.now()}-${index}`,
-        content: element.content || '',
-        type: element.type,
-        sender: 'bot',
-        timestamp: Date.now(),
-        isTyping: true,
-        visible: false
-      };
-      
-      // Stocker les données de l'élément dans le message
-      newMessage.elementData = element;
-      
-      // Si c'est une question avec des options, ajouter les options au message
-      if (element.type === 'question' && element.options && element.options.length > 0) {
-        newMessage.options = element.options.map((opt: any) => opt.text);
-      }
-      // Si c'est une entrée libre (input), logger l'élément
-      else if (element.type === 'input') {
-        console.log('Élément input détecté:', element);
-      }
-      // Si c'est un média (image, vidéo, audio, fichier), stocker l'URL
-      else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
-        console.log(`Élément ${element.type} détecté:`, element);
-      }
-      setMessages(prev => [...prev, newMessage]);
-      // Après un délai, marquer le message comme terminé (plus en train d'être tapé)
-      setTimeout(() => {
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
-          )
-        );
-        // Puis afficher le message suivant
-        setTimeout(() => {
-          processSequentially(elements, index + 1);
-        }, 600); // Délai court entre chaque message
-      }, 1500 + Math.random() * 800);
-    };
-    processSequentially(node.data.elements, 0);
-  }, []);
-  
   // Réinitialiser la conversation
   const handleReload = useCallback(() => {
     if (assistantId) {

@@ -1,5 +1,9 @@
 import axios from 'axios';
 import { API_URL } from '../config';
+import Cookies from 'js-cookie';
+
+// Configuration des cookies - même constante que dans api.ts
+const TOKEN_COOKIE = 'leadflow_token';
 
 // Créer un client axios avec les headers d'authentification
 const analyticsClient = axios.create({
@@ -13,9 +17,13 @@ const analyticsClient = axios.create({
 
 // Ajouter le token d'authentification à chaque requête
 analyticsClient.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+  // Utiliser Cookies.get au lieu de localStorage pour être cohérent avec apiClient
+  const token = Cookies.get(TOKEN_COOKIE);
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
+    console.log(`🔒 Token d'authentification ajouté pour ${config.method?.toUpperCase()} ${config.url}`);
+  } else {
+    console.warn(`⚠️ Aucun token d'authentification trouvé pour ${config.method?.toUpperCase()} ${config.url}`);
   }
   return config;
 });
@@ -63,6 +71,34 @@ export interface LeadInfo {
   completion_percentage: number;
   lead_info: Record<string, string>;
   user_info: Record<string, string>;
+  conversations?: Array<{
+    id: string;
+    content: string;
+    sender: string;
+    timestamp: string | number;
+    content_type?: string;
+    is_question?: boolean;
+  }>;
+  user_responses?: Array<{
+    id?: string;
+    node_id: string;
+    field_name: string;
+    response_value: string;
+    timestamp: string | number;
+  }>;
+  qa_pairs?: Array<{
+    id?: string;
+    node_id?: string;
+    question: string;
+    answer: string;
+    timestamp: string | number;
+  }>;
+  form_submissions?: Array<{
+    id?: string;
+    node_id?: string;
+    form_data: Record<string, any>;
+    timestamp: string | number;
+  }>;
 }
 
 export interface RecentActivity {
@@ -73,6 +109,27 @@ export interface RecentActivity {
   date: string;
   assistantId?: string;
   assistantName?: string;
+}
+
+/**
+ * Enregistre un message (question ou réponse) pendant le parcours conversationnel
+ */
+export async function trackMessage(
+  sessionId: string,
+  content: string,
+  sender: "user" | "bot",
+  isQuestion: boolean,
+  messageType: string = "text",
+  nodeId?: string
+) {
+  await analyticsClient.post("/track_message", {
+    session_id: sessionId,
+    content,
+    sender,
+    is_question: isQuestion,
+    message_type: messageType,
+    node_id: nodeId,
+  });
 }
 
 class AnalyticsService {
@@ -132,6 +189,63 @@ class AnalyticsService {
     } catch (error) {
       console.error('Erreur lors de la récupération des leads récents:', error);
       throw error;
+    }
+  }
+  
+  /**
+   * Récupère les leads avec leurs conversations complètes
+   * @param assistantId ID de l'assistant
+   * @param leadType Type de lead (complet ou partiel)
+   */
+  async getLeadsWithConversations(assistantId: string, leadType: 'complete' | 'partial' = 'complete'): Promise<any> {
+    try {
+      const queryParams = new URLSearchParams({
+        assistant_id: assistantId,
+        lead_type: leadType
+      });
+      
+      const response = await analyticsClient.get(`/analytics/leads/conversations?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des leads avec conversations:', error);
+      
+      // Pour le développement, retourner des données de démo si l'API n'est pas encore implémentée
+      return [
+        {
+          id: '1',
+          assistant_name: 'RH Assistant',
+          lead_status: 'complete',
+          created_at: '2023-04-23T10:30:00Z',
+          completion_percentage: 100,
+          lead_info: { email: 'alice@example.com', name: 'Alice Dupont' },
+          user_info: { source: 'website', browser: 'Chrome' },
+          conversations: [
+            { id: '1', content: 'Bonjour, comment puis-je vous aider ?', sender: 'bot', timestamp: '2023-04-23T10:30:05Z', is_question: true },
+            { id: '2', content: 'Je cherche des informations sur vos services', sender: 'user', timestamp: '2023-04-23T10:30:15Z', is_question: false },
+            { id: '3', content: 'Bien sûr, je peux vous aider. Pouvez-vous me donner votre email ?', sender: 'bot', timestamp: '2023-04-23T10:30:25Z', is_question: true },
+            { id: '4', content: 'alice@example.com', sender: 'user', timestamp: '2023-04-23T10:30:35Z', is_question: false }
+          ],
+          user_responses: [
+            { id: '1', node_id: 'email_node', field_name: 'email', response_value: 'alice@example.com', timestamp: '2023-04-23T10:30:35Z' }
+          ],
+          qa_pairs: [
+            { id: '1', question: 'Quel est votre budget ?', answer: '5000€', timestamp: '2023-04-23T10:31:15Z' },
+            { id: '2', question: 'Quand souhaitez-vous démarrer ?', answer: 'Le mois prochain', timestamp: '2023-04-23T10:31:45Z' }
+          ],
+          form_submissions: [
+            { 
+              id: '1',
+              form_data: { 
+                name: 'Alice Dupont', 
+                email: 'alice@example.com',
+                phone: '0612345678',
+                company: 'ABC Corp'
+              }, 
+              timestamp: '2023-04-23T10:32:15Z' 
+            }
+          ]
+        }
+      ];
     }
   }
 
@@ -275,6 +389,57 @@ class AnalyticsService {
           { date: '2023-04-22', sessions: 70 },
           { date: '2023-04-23', sessions: 62 },
         ]
+      };
+    }
+  }
+
+  /**
+   * Récupère les détails complets d'une session avec toutes les interactions
+   */
+  async getSessionInteractions(sessionId: string): Promise<any> {
+    try {
+      const response = await analyticsClient.get(`/analytics/sessions/${sessionId}/interactions`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de la récupération des interactions de session:', error);
+      
+      // Pour le développement, retourner des données de démo
+      return {
+        session_info: {
+          id: sessionId,
+          assistant_id: '1',
+          started_at: '2023-04-23T10:30:00Z',
+          ended_at: '2023-04-23T10:35:00Z',
+          status: 'completed',
+          lead_status: 'complete'
+        },
+        conversations: [
+          { id: '1', content: 'Bonjour, comment puis-je vous aider ?', sender: 'bot', timestamp: '2023-04-23T10:30:05Z', is_question: true },
+          { id: '2', content: 'Je cherche des informations sur vos services', sender: 'user', timestamp: '2023-04-23T10:30:15Z', is_question: false },
+          { id: '3', content: 'Bien sûr, je peux vous aider. Pouvez-vous me donner votre email ?', sender: 'bot', timestamp: '2023-04-23T10:30:25Z', is_question: true },
+          { id: '4', content: 'alice@example.com', sender: 'user', timestamp: '2023-04-23T10:30:35Z', is_question: false }
+        ],
+        user_responses: [
+          { id: '1', node_id: 'email_node', field_name: 'email', response_value: 'alice@example.com', timestamp: '2023-04-23T10:30:35Z' }
+        ],
+        qa_pairs: [
+          { id: '1', question: 'Quel est votre budget ?', answer: '5000€', timestamp: '2023-04-23T10:31:15Z' },
+          { id: '2', question: 'Quand souhaitez-vous démarrer ?', answer: 'Le mois prochain', timestamp: '2023-04-23T10:31:45Z' }
+        ],
+        form_submissions: [
+          { 
+            id: '1',
+            form_data: { 
+              name: 'Alice Dupont', 
+              email: 'alice@example.com',
+              phone: '0612345678',
+              company: 'ABC Corp'
+            }, 
+            timestamp: '2023-04-23T10:32:15Z' 
+          }
+        ],
+        user_info: { source: 'website', browser: 'Chrome' },
+        lead_info: { email: 'alice@example.com', name: 'Alice Dupont' }
       };
     }
   }

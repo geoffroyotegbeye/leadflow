@@ -181,9 +181,12 @@ async def add_message(session_id: str, message: MessageCreate, request: Request)
         
         # Enregistrer le message pour les analytics
         await analytics_service.track_message(
-            session_id, 
-            str(message.content_type), 
-            message.node_id
+            session_id=session_id,
+            message_type=str(message.content_type),
+            content=message.content,
+            sender=message.sender,
+            node_id=message.node_id,
+            is_question=getattr(message, 'is_question', False)
         )
         
         # Si c'est un message utilisateur avec un node_id, mettre à jour l'étape
@@ -408,6 +411,47 @@ async def get_session_messages(session_id: str, request: Request):
         return messages
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des messages: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@router.get("/by-assistant/{assistant_id}/leads", response_model=List[Dict[str, Any]])
+async def get_assistant_leads(assistant_id: str, request: Request, lead_type: str = "complete"):
+    """
+    Récupère tous les leads (complets ou partiels) d'un assistant avec leurs conversations.
+    """
+    try:
+        db = await get_database()
+        
+        # Vérifier si l'assistant existe
+        assistant = await db[ASSISTANTS_COLLECTION].find_one({"_id": ObjectId(assistant_id)})
+        if not assistant:
+            assistant = await db[ASSISTANTS_COLLECTION].find_one({"public_id": assistant_id})
+        
+        if not assistant:
+            raise HTTPException(status_code=404, detail="Assistant non trouvé")
+        
+        # Déterminer le statut de lead à filtrer
+        lead_status = LeadStatus.COMPLETE if lead_type == "complete" else LeadStatus.PARTIAL
+        
+        # Récupérer les sessions avec le statut de lead spécifié
+        sessions = []
+        async for session in db[SESSIONS_COLLECTION].find({
+            "assistant_id": str(assistant["_id"]),
+            "lead_status": lead_status
+        }).sort("started_at", -1):
+            session_data = session_to_response(session)
+            
+            # Récupérer les messages de cette session
+            messages = []
+            async for message in db[MESSAGES_COLLECTION].find({"session_id": session_data["id"]}).sort("timestamp", 1):
+                messages.append(message_to_response(message))
+            
+            # Ajouter les messages à la session
+            session_data["messages"] = messages
+            sessions.append(session_data)
+        
+        return sessions
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des leads: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
 @router.get("/by-assistant/{assistant_id}", response_model=List[SessionResponse])

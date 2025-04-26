@@ -509,9 +509,6 @@ const FlowEditor = () => {
         </button>
         <button
           onClick={async () => {
-            // Sauvegarder d'abord l'assistant
-            await saveAssistant();
-
             // Demander confirmation pour la publication/dépublication
             setConfirmDialog({
               isOpen: true,
@@ -521,6 +518,18 @@ const FlowEditor = () => {
                 : 'Voulez-vous publier cet assistant ? Il sera accessible publiquement via un lien dédié.',
               onConfirm: async () => {
                 try {
+                  // Sauvegarder automatiquement l'assistant avant de le publier
+                  const saveResult = await saveAssistant();
+                  
+                  if (!saveResult && !isPublished) {
+                    showToast({
+                      type: 'error',
+                      message: 'Impossible de sauvegarder l\'assistant avant la publication. Veuillez réessayer.'
+                    });
+                    return;
+                  }
+                  
+                  // Publier ou dépublier l'assistant
                   await publishAssistant(!isPublished);
                   showToast({
                     type: 'success',

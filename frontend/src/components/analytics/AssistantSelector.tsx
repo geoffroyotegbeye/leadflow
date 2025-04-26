@@ -68,7 +68,7 @@ const AssistantSelector: React.FC<AssistantSelectorProps> = ({
   // Trouver le nom de l'assistant sélectionné
   const selectedAssistantName = selectedAssistantId 
     ? assistants.find(a => a.id === selectedAssistantId)?.name || 'Assistant sélectionné'
-    : 'Sélectionner un assistant';
+    : 'Tous mes assistants';
 
   return (
     <div className="relative">
@@ -108,6 +108,18 @@ const AssistantSelector: React.FC<AssistantSelectorProps> = ({
             </div>
           ) : (
             <ul className="py-1 max-h-60 overflow-y-auto">
+              {/* Option pour tous les assistants */}
+              <li>
+                <button
+                  onClick={() => handleAssistantSelect('')}
+                  className={`w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    !selectedAssistantId ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'
+                  }`}
+                >
+                  Tous mes assistants
+                </button>
+              </li>
+              {/* Liste des assistants individuels */}
               {assistants.map(assistant => (
                 <li key={assistant.id}>
                   <button

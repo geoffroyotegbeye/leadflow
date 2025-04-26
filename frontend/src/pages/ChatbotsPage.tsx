@@ -58,8 +58,10 @@ const ChatbotsPage: React.FC = () => {
       const imported = await AssistantService.importFromJson(json);
       setAssistants(prev => [...prev, imported]);
       setImportError(null);
+      showToast({ type: 'success', message: `Assistant "${imported.name}" importé avec succès` });
     } catch (err) {
       setImportError("Le fichier JSON sélectionné n'est pas valide ou ne contient pas les données requises.");
+      showToast({ type: 'error', message: "Le fichier JSON sélectionné n'est pas valide ou ne contient pas les données requises." });
     } finally {
       setImportLoading(false);
     }
@@ -76,8 +78,10 @@ const ChatbotsPage: React.FC = () => {
       const created = await AssistantService.create(newAssistant);
       setAssistants(prev => [...prev, created]);
       setShowForm(false);
+      showToast({ type: 'success', message: `Assistant "${created.name}" créé avec succès` });
     } catch (err) {
       setImportError("Impossible de créer l'assistant. Veuillez réessayer plus tard.");
+      showToast({ type: 'error', message: "Impossible de créer l'assistant. Veuillez réessayer plus tard." });
     }
   };
 
@@ -111,16 +115,15 @@ const ChatbotsPage: React.FC = () => {
   const handleDuplicate = async (id: string) => {
     try {
       const assistant = await AssistantService.getById(id);
-      const duplicatedAssistant = {
+      const duplicated = await AssistantService.create({
         ...assistant,
-        name: `${assistant.name} (Copie)`,
         id: undefined,
-      };
-      const created = await AssistantService.create(duplicatedAssistant);
-      setAssistants(prev => [...prev, created]);
-      showToast({ type: 'success', message: `Assistant "${assistant.name}" dupliqué avec succès` });
+        name: `${assistant.name} (Copie)`
+      });
+      setAssistants(prev => [...prev, duplicated]);
+      showToast({ type: 'success', message: `Assistant "${duplicated.name}" dupliqué avec succès` });
     } catch (err) {
-      showToast({ type: 'error', message: 'Impossible de dupliquer l\'assistant. Veuillez réessayer plus tard.' });
+      showToast({ type: 'error', message: "Impossible de dupliquer l'assistant. Veuillez réessayer plus tard." });
     }
   };
 

@@ -10,6 +10,7 @@ import logging
 from app.models.session import AnalyticsOverview, AnalyticsResponse, LeadStatus, SessionStatus
 from app.database.mongodb import get_database
 from app.api.auth import get_current_user
+from app.services.analytics_service import AnalyticsService
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -457,6 +458,23 @@ async def get_user_responses(
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des réponses utilisateurs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@router.post("/track_message")
+async def track_message_api(request: Request):
+    data = await request.json()
+    session_id = data.get("session_id")
+    message_type = data.get("message_type", "text")
+    content = data.get("content")
+    is_question = data.get("is_question")
+    node_id = data.get("node_id")
+    await AnalyticsService.track_message(
+        session_id=session_id,
+        message_type=message_type,
+        content=content,
+        is_question=is_question,
+        node_id=node_id,
+    )
+    return {"status": "ok"}
 
 @router.get("/debug-analytics/{assistant_id}", response_model=dict)
 async def debug_analytics(assistant_id: str, request: Request, days: int = 30):

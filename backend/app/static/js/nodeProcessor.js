@@ -3,6 +3,7 @@
  */
 import { state, addMessage, updateMessage } from './state.js';
 import { baseUrl } from './config.js';
+import { trackMessage } from './eventHandlers.js';
 
 // Traiter les éléments d'un nœud
 const processNodeElements = async (node) => {
@@ -22,6 +23,38 @@ const processNodeElements = async (node) => {
       });
     } catch (error) {
       console.error('Erreur lors de l\'enregistrement de la vue du nœud:', error);
+    }
+    
+    // TRACKING SYSTEMATIQUE DE LA QUESTION (si présente)
+    if (node.question) {
+      await trackMessage(state.sessionId, node.question, true, node.type || 'text', node.id);
+    } else if (node.data && node.data.elements && node.data.elements.length) {
+      // Si la question est dans le premier élément
+      const firstElement = node.data.elements[0];
+      if (firstElement.content) {
+        await trackMessage(state.sessionId, firstElement.content, true, firstElement.type || 'text', node.id);
+      }
+    }
+    // Vérifier si c'est un nœud de type END
+    console.log('Vérification du type de nœud:', node.type, node.data?.type);
+    if (node.type === 'end' || node.data?.type === 'end') {
+      console.log('🏁 Nœud de fin détecté! Terminaison de la session...');
+      try {
+        const response = await fetch(`${baseUrl}/api/sessions/${state.sessionId}/end`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          console.log('✅ Session terminée avec succès!');
+        } else {
+          console.error('❌ Erreur lors de la terminaison de la session:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la terminaison de la session:', error);
+      }
     }
   }
   
