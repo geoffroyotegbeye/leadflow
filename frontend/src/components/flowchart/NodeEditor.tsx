@@ -71,7 +71,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
     try {
       // Utilise le service dédié pour l'upload de média
       const path = await MediaService.uploadMedia(file, type);
-      
+
       // Met à jour l'élément avec le chemin retourné
       if (['image', 'video', 'audio'].includes(type)) {
         handleElementChange(elementId, { mediaUrl: path });
@@ -283,9 +283,9 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
               type="file"
               accept={
                 element.type === 'image' ? 'image/*'
-                : element.type === 'video' ? 'video/*'
-                : element.type === 'audio' ? 'audio/*'
-                : '*/*'
+                  : element.type === 'video' ? 'video/*'
+                    : element.type === 'audio' ? 'audio/*'
+                      : '*/*'
               }
               onChange={e => {
                 if (e.target.files && e.target.files[0]) {
@@ -315,10 +315,10 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
             )}
             {element.fileUrl && element.type === 'file' && (
               <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-800">
-                <a 
-                  href={element.fileUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
+                <a
+                  href={element.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center justify-center text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -361,7 +361,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Cette description sera affichée avant les champs du formulaire.</p>
             </div>
-            
+
             <div className="mb-2">
               <span className="font-semibold">Champs du formulaire</span>
               <button
@@ -470,8 +470,8 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
         <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6 max-h-[90vh] flex flex-col border dark:border-gray-700">
-            <div className="flex flex-col gap-2 mt-2">
-              <Dialog.Title className="text-lg font-medium text-gray-900 dark:text-white">
+            <div className="flex justify-between gap-2 mt-2">
+              <Dialog.Title className="text-xl font-medium text-gray-900 dark:text-white">
                 Éditer le nœud
               </Dialog.Title>
               <div className="flex space-x-2">
@@ -515,7 +515,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
                         onChange={(e) =>
                           setFormData(prev => prev ? { ...prev, label: e.target.value } : null)
                         }
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder:text-gray-400 dark:text-gray-300"
                       />
                     </div>
 
@@ -548,7 +548,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
                           ))}
                         </div>
                         <div className="custom-color-input flex items-center">
-                          <div 
+                          <div
                             className="color-preview w-8 h-8 rounded-full mr-2 border border-gray-300 dark:border-gray-600"
                             style={{ backgroundColor: formData?.color || '#3B82F6' }}
                           />
@@ -663,7 +663,7 @@ const NodeEditor: React.FC<NodeEditorProps> = ({
                   ))}
                 </div>
 
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse border-t dark:border-gray-700 pt-4 sticky bottom-0 bg-white dark:bg-gray-800 z-10">
+                <div className="mt-5 sm:mt-4 gap-3 sm:flex sm:flex-row-reverse border-t dark:border-gray-700 pt-4 sticky bottom-0 bg-white dark:bg-gray-800 z-10">
                   <button
                     type="button"
                     className="inline-flex w-full justify-center rounded-md bg-blue-600 dark:bg-blue-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 dark:hover:bg-blue-800 sm:ml-3 sm:w-auto"

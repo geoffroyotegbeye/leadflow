@@ -42,6 +42,7 @@ import CustomNode from '../components/flowchart/CustomNode';
 import NodeEditor from '../components/flowchart/NodeEditor';
 import ContextMenu from '../components/flowchart/ContextMenu';
 import ChatPreview from '../components/preview/ChatPreview';
+import NodeButtonGroup from '../components/flowchart/NodeButtonGroup';
 import { useParams } from 'react-router-dom';
 import { useAssistantStore } from '../stores/assistantStore';
 
@@ -365,24 +366,42 @@ const FlowEditor = () => {
     }
   }, [selectedNode, nodes, updateNodes]);
 
-  const addNode = useCallback((type: NodeType) => {
-    const newNodeId = `${type}-${Date.now()}`;
-    const newNode: Node<NodeData> = {
-      id: newNodeId,
-      type: 'custom',
-      position: { x: 100, y: 100 },
-      data: {
-        label: NODE_TYPES[type].label,
-        type: type,
-        id: newNodeId,
-        elements: [],
-      },
-    };
-
-    // Ajouter le nouveau nœud à la liste existante
-    updateNodes([...nodes, newNode]);
-    setSelectedNode(newNode);
-    setIsEditorOpen(true);
+  // Fonction pour ajouter un nouveau nœud
+  const addNode = useCallback((nodeData: NodeData | NodeType) => {
+    // Si on reçoit un NodeType au lieu d'un NodeData complet (compatibilité avec les anciens boutons)
+    if (typeof nodeData === 'string') {
+      const type = nodeData as NodeType;
+      const newNode: Node = {
+        id: crypto.randomUUID(),
+        type: 'custom',
+        position: {
+          x: Math.random() * 300 + 50,
+          y: Math.random() * 300 + 50,
+        },
+        data: {
+          label: NODE_TYPES[type]?.label || 'Nouveau nœud',
+          type,
+          elements: [],
+        },
+      };
+      updateNodes([...nodes, newNode]);
+    } else {
+      // Si on reçoit un NodeData complet (du nouveau composant NodeButtonGroup)
+      const newNode: Node = {
+        id: nodeData.id,
+        type: 'custom',
+        position: nodeData.position || {
+          x: Math.random() * 300 + 50,
+          y: Math.random() * 300 + 50,
+        },
+        data: {
+          label: nodeData.label,
+          type: nodeData.type,
+          elements: nodeData.elements || [],
+        },
+      };
+      updateNodes([...nodes, newNode]);
+    }
   }, [nodes, updateNodes]);
 
   const handleNodeUpdate = useCallback((data: NodeData) => {
@@ -660,20 +679,7 @@ const FlowEditor = () => {
         </ReactFlow>
 
         <div className={`flow-add-buttons transition-all duration-300 ease-in-out ${isPreviewOpen ? 'mr-96' : ''}`}>
-          <button
-            onClick={() => addNode(NodeType.INTERACTION)}
-            className="flow-add-button mb-2"
-            title="Ajouter un nœud d'interaction"
-          >
-            <PlusIcon className="w-6 h-6" />
-          </button>
-          <button
-            onClick={() => addNode(NodeType.END)}
-            className="flow-add-button bg-red-600 hover:bg-red-700"
-            title="Ajouter un nœud de fin"
-          >
-            <StopIcon className="w-6 h-6" />
-          </button>
+          <NodeButtonGroup onAddNode={addNode} />
         </div>
 
         {contextMenu && (

@@ -36,7 +36,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Attacher les écouteurs d'événements
   sendButton?.addEventListener('click', handleSendMessage);
-  
+
+  // Reload chat au clic sur le bouton reset
+  const resetButton = document.getElementById('reset-button');
+  resetButton?.addEventListener('click', () => {
+    // Vider les messages
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) chatMessages.innerHTML = '';
+    // Réinitialiser l'état local
+    if (window.localStorage) {
+      const publicId = document.getElementById('assistant-data')?.dataset.publicId;
+      if (publicId) localStorage.removeItem(`assistant_${publicId}`);
+    }
+    // Réinitialiser l'état JS
+    if (typeof state !== 'undefined') {
+      state.messages = [];
+      state.currentNode = null;
+      state.sessionId = null;
+    }
+    // Recharger la page pour tout réinitialiser proprement
+    window.location.reload();
+  });
+
   messageInput?.addEventListener('keypress', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();

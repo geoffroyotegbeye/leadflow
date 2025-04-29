@@ -59,7 +59,42 @@ const processNodeElements = async (node) => {
   }
   
   // Traiter chaque élément du nœud séquentiellement
-  for (const element of node.data.elements) {
+  for (let i = 0; i < node.data.elements.length; i++) {
+    const element = node.data.elements[i];
+    
+    // Si c'est un formulaire avec une description, afficher d'abord la description comme message distinct
+    if (element.type === 'form' && element.formDescription) {
+      // Ajouter un message avec la description du formulaire
+      const descriptionMessageId = `bot-desc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      addMessage({
+        id: descriptionMessageId,
+        nodeId: node.id,
+        content: '',
+        type: 'text',
+        sender: 'bot',
+        timestamp: Date.now(),
+        isTyping: true,
+        elementData: { content: element.formDescription }
+      });
+      
+      // Simuler le temps de frappe pour la description
+      const descTypingTime = Math.max(500, element.formDescription.length * 10);
+      await new Promise(resolve => setTimeout(resolve, descTypingTime));
+      
+      // Mettre à jour le message avec la description
+      updateMessage(descriptionMessageId, {
+        content: element.formDescription,
+        isTyping: false
+      });
+      
+      // Attendre un moment avant d'afficher le formulaire
+      await new Promise(resolve => setTimeout(resolve, 1800));
+      
+      // Marquer l'élément pour ne pas afficher la description dans le formulaire
+      element.formDescriptionAsMessage = true;
+    }
+    
     // Ajouter un message avec état de frappe
     const messageId = `bot-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     

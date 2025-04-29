@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { XMarkIcon, ArrowPathIcon, UserCircleIcon, PaperAirplaneIcon, ArrowsPointingOutIcon, ArrowsPointingInIcon } from '@heroicons/react/24/outline';
 import AssistantService from '../../services/api';
-import sessionService from '../../services/sessionService';
-import ConfirmDialog from '../ui/ConfirmDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import './ChatPreview.css';
 import { useAssistantStore } from '../../stores/assistantStore';
 import InlineMultiFieldForm from './InlineMultiFieldForm';
 import { NodeType } from '../flowchart/NodeTypes';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 // Composant pour formulaire multi-champs dans le chat
 interface InlineMultiFieldFormMessageProps {
@@ -28,6 +27,9 @@ const InlineMultiFieldFormMessage: React.FC<InlineMultiFieldFormMessageProps> = 
   processNodeElements
 }) => {
   if (!element.formFields) return null;
+
+  // On n'affiche la description dans le formulaire que si elle n'a pas déjà été affichée comme message
+  const showDescriptionInForm = !element.formDescriptionAsMessage;
 
   const handleSubmit = (values: Record<string, any>) => {
     // Formater les données du formulaire pour un affichage lisible
@@ -73,7 +75,7 @@ const InlineMultiFieldFormMessage: React.FC<InlineMultiFieldFormMessageProps> = 
       <InlineMultiFieldForm 
         fields={element.formFields} 
         onSubmit={handleSubmit} 
-        description={element.formDescription} 
+        description={showDescriptionInForm ? element.formDescription : undefined} 
       />
     </motion.div>
   );
@@ -217,42 +219,79 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   const [flowData, setFlowData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [expandedView, setExpandedView] = useState(false);
-  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
-  // const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
   // Traiter les éléments d'un nœud
   const processNodeElements = useCallback((node: any) => {
     if (!node.data?.elements) return;
-    
+
     // Vérifier si c'est un nœud de type END
     const isEndNode = node.data.type === NodeType.END || node.data.type === 'end';
-    
-    // Si c'est un nœud de fin, marquer la session comme terminée
-    if (isEndNode && sessionId) {
-      console.log('%c[DEBUG] Nœud de fin détecté, marquage de la session comme terminée', 'background: #ff0000; color: white; font-weight: bold');
-      console.log('%c[DEBUG] Session ID:', 'background: #ff0000; color: white', sessionId);
-      console.log('%c[DEBUG] Type de nœud:', 'background: #ff0000; color: white', node.data.type);
-      
-      // Appel au service pour terminer la session
-      sessionService.endSession(sessionId)
-        .then(response => {
-          console.log('%c[DEBUG] Session terminée avec succès:', 'background: #00ff00; color: black; font-weight: bold', response);
-          // Afficher une alerte pour confirmer la fin de session
-          alert(`Session terminée avec succès! ID: ${sessionId}`);
-        })
-        .catch(error => {
-          console.error('%c[DEBUG] Erreur lors de la fin de session:', 'background: #ff0000; color: white; font-weight: bold', error);
-          alert(`Erreur lors de la fin de session: ${error.message}`);
-        });
-    }
+    // Pour la prévisualisation, ne rien faire côté session
 
     const processSequentially = (elements: any[], index: number) => {
       if (index >= elements.length) return;
       const element = elements[index];
+      
+      // Si c'est un formulaire avec une description, ajouter d'abord la description comme message
+      if (element.type === 'form' && element.formDescription) {
+        const descriptionMessage: ChatMessage = {
+          id: `bot-${Date.now()}-form-desc`,
+          content: element.formDescription,
+          type: 'text',
+          sender: 'bot',
+          timestamp: Date.now(),
+          isTyping: true,
+          visible: false
+        };
+        
+        setMessages(prev => [...prev, descriptionMessage]);
+        
+        // Afficher la description après un délai
+        setTimeout(() => {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === descriptionMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+            )
+          );
+          
+          // Ensuite traiter l'élément formulaire normalement
+          setTimeout(() => {
+            // N'afficher le formulaire que si la description est visible
+            const newMessage: ChatMessage = {
+              id: `bot-${Date.now()}-${index}`,
+              content: '', // S'assurer qu'il n'y a pas de texte inutile
+              type: element.type,
+              sender: 'bot',
+              timestamp: Date.now(),
+              isTyping: true,
+              visible: false,
+              elementData: { ...element, formDescriptionAsMessage: true }
+            };
+            
+            setMessages(prev => [...prev, newMessage]);
+            
+            setTimeout(() => {
+              setMessages(prev =>
+                prev.map(msg =>
+                  msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+                )
+              );
+              
+              setTimeout(() => {
+                processSequentially(elements, index + 1);
+              }, 600);
+            }, 1500 + Math.random() * 800);
+          }, 1800); // Délai augmenté à 1800ms pour laisser le temps de lire la description
+        }, 1500 + Math.random() * 800);
+        
+        return;
+      }
+      
+      // Traitement normal pour les autres types d'éléments
       const newMessage: ChatMessage = {
         id: `bot-${Date.now()}-${index}`,
         content: element.content || '',
@@ -262,87 +301,61 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         isTyping: true,
         visible: false
       };
-      
       // Stocker les données de l'élément dans le message
       newMessage.elementData = element;
-      
-      // Si c'est une question avec des options, ajouter les options au message
       if (element.type === 'question' && element.options && element.options.length > 0) {
         newMessage.options = element.options.map((opt: any) => opt.text);
-      }
-      // Si c'est une entrée libre (input), logger l'élément
-      else if (element.type === 'input') {
+      } else if (element.type === 'input') {
         console.log('Élément input détecté:', element);
-      }
-      // Si c'est un média (image, vidéo, audio, fichier), stocker l'URL
-      else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
+      } else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
         console.log(`Élément ${element.type} détecté:`, element);
       }
       setMessages(prev => [...prev, newMessage]);
-      // Après un délai, marquer le message comme terminé (plus en train d'être tapé)
       setTimeout(() => {
         setMessages(prev =>
           prev.map(msg =>
             msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
           )
         );
-        // Puis afficher le message suivant
         setTimeout(() => {
           processSequentially(elements, index + 1);
-        }, 600); // Délai court entre chaque message
+        }, 600);
       }, 1500 + Math.random() * 800);
     };
     processSequentially(node.data.elements, 0);
-  }, [sessionId]);
-
+  }, []);
+  
   // Initialiser la conversation avec le nœud de départ
   const initializeChat = useCallback(() => {
     if (!flowData.nodes.length || !assistantId) {
-      console.log('%c[DEBUG] Impossible d\'initialiser le chat: données manquantes', 'background: #ff0000; color: white');
+      console.log("%c[DEBUG] Impossible d'initialiser le chat: données manquantes", 'background: #ff0000; color: white');
       console.log('%c[DEBUG] flowData.nodes.length:', 'background: #ff0000; color: white', flowData.nodes.length);
       console.log('%c[DEBUG] assistantId:', 'background: #ff0000; color: white', assistantId);
       return;
     }
-    
-    console.log('%c[DEBUG] Initialisation du chat, création d\'une nouvelle session', 'background: #0000ff; color: white; font-weight: bold');
-    console.log('%c[DEBUG] Assistant ID:', 'background: #0000ff; color: white', assistantId);
-    
-    // Créer une nouvelle session
-    sessionService.createSession(assistantId)
-      .then(session => {
-        console.log('%c[DEBUG] Nouvelle session créée avec succès:', 'background: #00ff00; color: black; font-weight: bold', session);
-        setSessionId(session.id);
-        
-        // Trouver le nœud de départ
-        const startNode = flowData.nodes.find(node => node.data?.type === 'start');
-        console.log('%c[DEBUG] Nœud de départ trouvé:', 'background: #0000ff; color: white', startNode);
-        
-        if (startNode) {
-          setCurrentNodeId(startNode.id);
-          processNodeElements(startNode);
-        } else {
-          console.error('%c[DEBUG] Aucun nœud de départ trouvé dans le flowData', 'background: #ff0000; color: white; font-weight: bold');
-        }
-      })
-      .catch(error => {
-        console.error('%c[DEBUG] Erreur lors de la création de la session:', 'background: #ff0000; color: white; font-weight: bold', error);
-        alert(`Erreur lors de la création de la session: ${error.message}`);
-      });
+    // Trouver le nœud de départ
+    const startNode = flowData.nodes.find(node => node.data?.type === 'start');
+    console.log('%c[DEBUG] Nœud de départ trouvé:', 'background: #0000ff; color: white', startNode);
+    if (startNode) {
+      setCurrentNodeId(startNode.id);
+      processNodeElements(startNode);
+    } else {
+      console.error("%c[DEBUG] Aucun nœud de départ trouvé dans le flowData", 'background: #ff0000; color: white; font-weight: bold');
+    }
   }, [flowData, processNodeElements, assistantId]);
 
-  
   // Faire défiler vers le bas quand de nouveaux messages arrivent
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-  
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   // Utiliser le store Zustand pour accéder aux données du flowchart
   const { nodes: storeNodes, edges: storeEdges } = useAssistantStore();
-  
+
   // Charger le flowchart depuis le store
   useEffect(() => {
     if (assistantId) {
@@ -356,7 +369,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       } else {
         // Sinon, charger depuis l'API
         setIsLoading(true);
-        
+
         AssistantService.getById(assistantId)
           .then(assistant => {
             setFlowData({
@@ -419,12 +432,12 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       setConfirmResetOpen(false);
     }
   }, [assistantId, initializeChat]);
-  
+
   // Ouvrir la boîte de dialogue de confirmation pour réinitialiser
   const confirmReset = () => {
     setConfirmResetOpen(true);
   };
-  
+
   // Gérer le redimensionnement du panel
   const toggleExpandView = () => {
     setExpandedView(!expandedView);
@@ -433,12 +446,12 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       scrollToBottom();
     }, 100);
   };
-  
+
   // Gérer la soumission d'un message par l'utilisateur
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim()) return;
-    
+
     // Ajouter le message de l'utilisateur
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -448,21 +461,21 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       timestamp: Date.now(),
       visible: true // Les messages de l'utilisateur sont immédiatement visibles
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     setUserInput('');
-    
+
     // Trouver le dernier message du bot avec des options
     const lastBotMessage = [...messages].reverse().find(
       msg => msg.sender === 'bot' && msg.options && msg.options.length > 0
     );
-    
+
     if (lastBotMessage && lastBotMessage.elementData) {
       // Trouver l'option qui correspond au texte saisi par l'utilisateur
       const matchedOption = lastBotMessage.elementData.options.find(
         (opt: any) => opt.text.toLowerCase() === userInput.toLowerCase()
       );
-      
+
       if (matchedOption && matchedOption.targetNodeId) {
         // Trouver le nœud cible
         const targetNode = flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
@@ -481,13 +494,13 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
           isTyping: true,
           visible: false
         };
-        
+
         setMessages(prev => [...prev, errorMessage]);
-        
+
         // Après un délai, marquer le message comme terminé (plus en train d'être tapé)
         setTimeout(() => {
-          setMessages(prev => 
-            prev.map(msg => 
+          setMessages(prev =>
+            prev.map(msg =>
               msg.id === errorMessage.id ? { ...msg, isTyping: false, visible: true } : msg
             )
           );
@@ -495,12 +508,12 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       }
     }
   };
-  
+
   // Gérer le clic sur une option
   const handleOptionClick = (optionText: string, elementData: any) => {
     // Définir l'option sélectionnée pour le style visuel
     setSelectedOption(optionText);
-    
+
     // Ajouter le message de l'utilisateur avec l'option choisie
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -510,21 +523,21 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       timestamp: Date.now(),
       visible: true // Les messages de l'utilisateur sont immédiatement visibles
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
-    
+
     // Trouver l'option correspondante dans les données de l'élément
     const matchedOption = elementData?.options?.find(
       (opt: any) => opt.text === optionText
     );
-    
+
     if (matchedOption && matchedOption.targetNodeId) {
       // Trouver le nœud cible
       const targetNode = flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
       if (targetNode) {
         setCurrentNodeId(targetNode.id);
         processNodeElements(targetNode);
-        
+
         // Réinitialiser l'option sélectionnée après le traitement
         setTimeout(() => setSelectedOption(null), 500);
       }
@@ -533,14 +546,12 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
       setTimeout(() => setSelectedOption(null), 500);
     }
   };
-  
 
-  
   // Rendu du composant
   if (!isOpen) return null;
-  
+
   return (
-    <div 
+    <div
       className={`fixed top-0 right-0 h-full ${expandedView ? 'w-[600px]' : 'w-96'} bg-white dark:bg-gray-800 shadow-lg flex flex-col z-50 border-l border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}
     >
       <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
@@ -551,8 +562,8 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             title={expandedView ? "Réduire le panel" : "Élargir le panel"}
           >
-            {expandedView ? 
-              <ArrowsPointingInIcon className="h-5 w-5" /> : 
+            {expandedView ?
+              <ArrowsPointingInIcon className="h-5 w-5" /> :
               <ArrowsPointingOutIcon className="h-5 w-5" />
             }
           </button>
@@ -571,7 +582,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
           </button>
         </div>
       </div>
-      
+
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -629,7 +640,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           <span></span>
                         </div>
                       ) : (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ duration: 0.3 }}
@@ -649,10 +660,10 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           ) : message.type === 'image' && message.elementData?.mediaUrl ? (
                             <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
                               <div className="relative w-full">
-                                <img 
-                                  src={message.elementData.mediaUrl} 
-                                  alt={message.content || 'Image'} 
-                                  className="max-w-full rounded-t-lg max-h-64 object-contain mx-auto p-2" 
+                                <img
+                                  src={message.elementData.mediaUrl}
+                                  alt={message.content || 'Image'}
+                                  className="max-w-full rounded-t-lg max-h-64 object-contain mx-auto p-2"
                                   onError={(e) => {
                                     console.error("Erreur de chargement d'image:", message.elementData.mediaUrl);
                                     e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+non+disponible';
@@ -664,10 +675,10 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           ) : message.type === 'video' && message.elementData?.mediaUrl ? (
                             <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
                               <div className="relative w-full">
-                                <video 
-                                  src={message.elementData.mediaUrl} 
-                                  controls 
-                                  className="max-w-full rounded-t-lg max-h-64 mx-auto p-2" 
+                                <video
+                                  src={message.elementData.mediaUrl}
+                                  controls
+                                  className="max-w-full rounded-t-lg max-h-64 mx-auto p-2"
                                   onError={(e) => {
                                     console.error("Erreur de chargement vidéo:", message.elementData.mediaUrl);
                                   }}
@@ -677,10 +688,10 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                             </div>
                           ) : message.type === 'audio' && message.elementData?.mediaUrl ? (
                             <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm p-3">
-                              <audio 
-                                src={message.elementData.mediaUrl} 
-                                controls 
-                                className="w-full" 
+                              <audio
+                                src={message.elementData.mediaUrl}
+                                controls
+                                className="w-full"
                                 onError={(e) => {
                                   console.error("Erreur de chargement audio:", message.elementData.mediaUrl);
                                 }}
@@ -689,9 +700,9 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                             </div>
                           ) : message.type === 'file' && message.elementData?.fileUrl ? (
                             <div className="media-container">
-                              <a 
-                                href={message.elementData.fileUrl} 
-                                target="_blank" 
+                              <a
+                                href={message.elementData.fileUrl}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg my-2 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
                               >
@@ -710,7 +721,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                       {message.sender === 'bot' && !message.isTyping && (
                         (message.options && message.options.length > 0) || (message.elementData?.options && message.elementData.options.length > 0)
                       ) && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.3, delay: 0.2 }}
@@ -729,10 +740,10 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                   }
                                 >
                                   {option.imageUrl && (
-                                    <img 
-                                      src={option.imageUrl} 
-                                      alt={option.text || `Option ${index+1}`} 
-                                      className="h-12 w-12 object-cover rounded mb-1 border border-gray-200 dark:border-gray-600" 
+                                    <img
+                                      src={option.imageUrl}
+                                      alt={option.text || `Option ${index+1}`}
+                                      className="h-12 w-12 object-cover rounded mb-1 border border-gray-200 dark:border-gray-600"
                                       onError={(e) => {
                                         e.currentTarget.src = 'https://via.placeholder.com/80?text=Error';
                                       }}
@@ -761,11 +772,10 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           </div>
                         </motion.div>
                       )}
-                      
                       {/* Afficher le champ de saisie directement dans la conversation pour les entrées libres */}
                       {message.sender === 'bot' && !message.isTyping && message.type === 'input' && message.elementData && (
-                        <InlineInputField 
-                          message={message} 
+                        <InlineInputField
+                          message={message}
                           setMessages={setMessages}
                           currentNodeId={currentNodeId}
                           setCurrentNodeId={setCurrentNodeId}
@@ -804,7 +814,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         return null;
       })()}
 
-      
       {/* Affichage dynamique du champ d'entrée selon l'élément attendu */}
       {(() => {
         // Chercher le dernier message du bot qui attend une entrée libre (input)
@@ -904,8 +913,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
           </form>
         );
       })()}
-
-      
       {/* Boîte de dialogue de confirmation pour réinitialiser la conversation */}
       <ConfirmDialog
         isOpen={confirmResetOpen}

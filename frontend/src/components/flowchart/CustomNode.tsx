@@ -107,6 +107,22 @@ const CustomNode: React.FC<NodeProps<NodeData>> = ({ data, selected }) => {
                       ))}
                     </div>
                   )}
+                  {element.type === 'form' && (
+                    <div className="flow-element-form">
+                      <div className="flow-form-description text-sm text-gray-600 dark:text-gray-400 italic mb-1">
+                        {element.formDescription || 'Formulaire sans description'}
+                      </div>
+                      {element.formFields && (
+                        <div className="flow-form-fields">
+                          {element.formFields.map((field: any, fieldIndex: number) => (
+                            <div key={fieldIndex} className="flow-form-field text-xs">
+                              • {field.label} {field.required ? '*' : ''}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -50,9 +50,6 @@ const InlineMultiFieldForm: React.FC<InlineMultiFieldFormProps> = ({ fields, onS
     <form className="space-y-4 p-4 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600" onSubmit={handleSubmit}>
       <div className="border-b pb-2 mb-3 border-gray-200 dark:border-gray-600">
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Veuillez compléter ce formulaire</h3>
-        {description && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
-        )}
       </div>
       {fields.map((field) => (
         <div key={field.name}>

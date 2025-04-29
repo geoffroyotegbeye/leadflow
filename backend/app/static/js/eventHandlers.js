@@ -12,7 +12,7 @@ export const setNodeProcessor = (processor) => {
 };
 
 // Fonction utilitaire pour tracker chaque message/question/réponse
-async function trackMessage(sessionId, content, isQuestion, messageType = "text", nodeId = null) {
+export async function trackMessage(sessionId, content, isQuestion, messageType = "text", nodeId = null) {
   try {
     await fetch(`${baseUrl}/api/analytics/track_message`, {
       method: 'POST',
@@ -272,5 +272,6 @@ export {
   handleOptionClick, 
   handleFormSubmit, 
   handleInlineInputSubmit, 
-  handleSendMessage 
+  handleSendMessage
+  // trackMessage est déjà exporté directement dans sa définition
 };

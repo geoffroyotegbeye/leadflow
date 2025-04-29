@@ -10,8 +10,15 @@ const generateMessageHTML = (message) => {
   const typingClass = message.isTyping ? 'typing' : '';
   const messageId = message.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
+  let classes = 'message';
+  if (message.sender === 'user') {
+    classes += ' message-user';
+  } else {
+    classes += ' message-bot';
+  }
+  
   let html = `
-    <div class="message ${senderClass} ${typingClass}" data-id="${messageId}">
+    <div class="${classes} ${senderClass} ${typingClass}" data-id="${messageId}">
   `;
   
   // Afficher l'en-tête du bot uniquement pour le premier message ou après un message utilisateur
@@ -145,6 +152,22 @@ const generateFormHTML = (message) => {
     <div class="form-container" id="form-${message.id}">
       <form class="inline-form" data-message-id="${message.id}">
   `;
+  
+  // Afficher la description du formulaire uniquement si elle n'a pas déjà été affichée comme message
+  if (message.elementData.formDescription && !message.elementData.formDescriptionAsMessage) {
+    formHTML += `
+      <div class="form-header">
+        <h3 class="form-title">Veuillez compléter ce formulaire</h3>
+        <p class="form-description">${message.elementData.formDescription}</p>
+      </div>
+    `;
+  } else {
+    formHTML += `
+      <div class="form-header">
+        <h3 class="form-title">Veuillez compléter ce formulaire</h3>
+      </div>
+    `;
+  }
   
   message.elementData.formFields.forEach((field, index) => {
     const fieldId = `field-${message.id}-${index}`;
