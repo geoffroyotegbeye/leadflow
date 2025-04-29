@@ -99,6 +99,54 @@ async def create_assistant(assistant: AssistantCreate, request: Request, user = 
         assistant_dict["updated_at"] = now
         assistant_dict["is_published"] = False
         assistant_dict["user_id"] = user["id"]  # Associer l'assistant à l'utilisateur connecté
+
+        # Ajouter un start node par défaut si aucun nœud n'est fourni
+        if not assistant_dict.get("nodes") or len(assistant_dict["nodes"]) == 0:
+            assistant_dict["nodes"] = [
+                {
+                    "id": "start",
+                    "label": "Accueil",
+                    "type": "custom",
+                    "elements": [],
+                    "position": {"x": 0, "y": 0},
+                    "color": None,
+                    "data": {
+                        "label": "Accueil",
+                        "type": "start",
+                        "elements": [
+                            {
+                                "id": "msg-bienvenue",
+                                "type": "text",
+                                "content": "Bonjour, moi c'est Léo ! 🤗\nVotre assistant bot, vous êtes au bon endroit !",
+                                "displayMode": "after"
+                            }
+                        ]
+                    },
+                    "width": 300,
+                    "height": 356
+                },
+                {
+                    "id": "end-1745614437935",
+                    "label": "Fin",
+                    "type": "custom",
+                    "position": {"x": 400, "y": 100},
+                    "data": {
+                        "label": "Fin",
+                        "type": "end",
+                        "id": "end-1745614437935",
+                        "elements": [
+                            {
+                                "id": "2f54f173-e107-4454-b8bb-671ad25e4240",
+                                "type": "text",
+                                "content": "Merci",
+                                "displayMode": "after"
+                            }
+                        ]
+                    },
+                    "width": 300,
+                    "height": 172
+                }
+            ]
         
         # Insérer le document
         result = await collection.insert_one(assistant_dict)
