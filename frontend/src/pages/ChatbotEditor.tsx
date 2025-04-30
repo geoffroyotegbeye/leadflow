@@ -45,6 +45,7 @@ import ChatPreview from '../components/preview/ChatPreview';
 import NodeButtonGroup from '../components/flowchart/NodeButtonGroup';
 import { useParams } from 'react-router-dom';
 import { useAssistantStore } from '../stores/assistantStore';
+import AssistantSelect from '../components/ui/AssistantSelect';
 
 const iconMap = {
   PlayIcon,
@@ -78,6 +79,9 @@ interface ContextMenuInfo {
 }
 
 const FlowEditor = () => {
+  // Affiche le select des assistants en haut à gauche
+  // (positionné en fixed dans le composant AssistantSelect)
+
   const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
 
   const { assistantId } = useParams<{ assistantId: string }>();
@@ -422,7 +426,9 @@ const FlowEditor = () => {
     <div className="flow-editor">
       {/* Le panel latéral a été remplacé par la modal ElementPicker */}
 
-      <div className={`absolute top-20 right-4 z-10 flex space-x-2 transition-all duration-300 ease-in-out ${isPreviewOpen ? 'mr-96' : ''}`}>
+      <div className={`flex flex-row items-center justify-end space-x-2 fixed top-20 right-6 z-20 transition-all duration-300 ease-in-out ${isPreviewOpen ? 'mr-96' : ''}`}>
+        <AssistantSelect />
+        <div className="mx-4" />
 
         <button
           onClick={async () => {

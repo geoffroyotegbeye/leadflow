@@ -58,7 +58,7 @@ const Sidebar: React.FC = () => {
 
       {/* Navigation */}
       <nav className="mt-6 px-3">
-        <div className={`${collapsed ? 'ml-4' : 'space-y-1'}`}>
+        <div className={`${collapsed ? 'ml-2 flex flex-col gap-1' : 'space-y-1'}`}>
           {menuItems.map((item) => {
             const isActive = isMenuActive(item.path);
             return (
@@ -67,50 +67,50 @@ const Sidebar: React.FC = () => {
                   <Tooltip content={item.label} position="right">
                     <Link
                       to={item.path}
-                      className={`flex items-center justify-center py-3 text-sm font-medium rounded-xl transition-all duration-200
+                      className={`flex items-center justify-center my-1 py-2 rounded-full w-10 h-10 mx-auto
                         ${
                           isActive
-                            ? 'bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/30'
+                            ? 'bg-blue-600/80 dark:bg-blue-500/70 text-white shadow-md'
+                            : 'text-gray-500 dark:text-gray-400'
                         }
+                        ${collapsed ? 'transition-colors duration-200' : ''}
                       `}
+                      style={{ minWidth: 40, minHeight: 40, transition: 'background 0.2s, color 0.2s' }}
                     >
                       <item.icon
-                        className={`mx-auto h-5 w-5 transition-colors duration-200
-                          ${
-                            isActive
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : 'text-gray-500 dark:text-gray-400'
-                          }
-                        `}
+                        className={`h-5 w-5 transition-colors duration-200 mx-auto`
+                        }
                       />
                     </Link>
                   </Tooltip>
                 ) : (
                   <Link
                     to={item.path}
-                    className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                    className={`flex items-center px-3 py-2 my-1 text-sm font-medium rounded-lg transition-all duration-200 relative
                       ${
                         isActive
-                          ? 'bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/30'
+                          ? 'bg-blue-600/15 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-gray-800/60'
                       }
                     `}
                   >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 transition-colors duration-200
-                        ${
-                          isActive
-                            ? 'text-blue-600 dark:text-blue-400'
-                            : 'text-gray-500 dark:text-gray-400'
+                    <span className={`flex items-center justify-center rounded-full transition-all duration-200 mr-3 w-9 h-9
+                      ${
+                        isActive
+                          ? 'bg-blue-600/80 dark:bg-blue-500/70 text-white shadow'
+                          : 'bg-transparent group-hover:bg-gray-200/60 dark:group-hover:bg-gray-800/60'
+                      }
+                    `}>
+                      <item.icon
+                        className={`h-5 w-5 transition-colors duration-200`
                         }
-                      `}
-                    />
+                      />
+                    </span>
                     <span>{item.label}</span>
                     {isActive && (
                       <motion.div
                         layoutId="active-pill"
-                        className="absolute right-5 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"
+                        className="absolute right-3 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"
                       />
                     )}
                   </Link>

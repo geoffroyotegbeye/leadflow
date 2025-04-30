@@ -64,20 +64,26 @@ def assistant_to_response(assistant: Dict[str, Any]) -> Dict[str, Any]:
             if not node.get("label") and isinstance(node.get("data"), dict) and "label" in node["data"]:
                 node["label"] = node["data"]["label"]
         
-        return {
+        is_published = assistant.get("is_published", False)
+        response = {
             "id": assistant_id,
             "name": assistant["name"],
             "description": assistant.get("description", ""),
             "nodes": nodes,
             "edges": assistant.get("edges", []),
-            "is_published": assistant.get("is_published", False),
+            "is_published": is_published,
             "publish_date": publish_date,
             "public_id": assistant.get("public_id"),
-            "public_url": assistant.get("public_url"),
-            "embed_script": assistant.get("embed_script"),
             "created_at": created_at,
             "updated_at": updated_at
         }
+        if is_published:
+            response["public_url"] = assistant.get("public_url")
+            response["embed_script"] = assistant.get("embed_script")
+        else:
+            response["public_url"] = None
+            response["embed_script"] = None
+        return response
     except Exception as e:
         logger.error(f"Erreur lors de la conversion de l'assistant: {str(e)}")
         logger.error(traceback.format_exc())
