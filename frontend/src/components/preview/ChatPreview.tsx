@@ -511,6 +511,12 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
 
   // Gérer le clic sur une option
   const handleOptionClick = (optionText: string, elementData: any) => {
+    // Logs de débogage pour identifier le problème
+    console.log('%c[DEBUG] Clic sur option:', 'background: #ff9800; color: white; font-weight: bold');
+    console.log('%c[DEBUG] Texte de l\'option:', 'background: #ff9800; color: white', optionText);
+    console.log('%c[DEBUG] Données de l\'element:', 'background: #ff9800; color: white', elementData);
+    console.log('%c[DEBUG] Options disponibles:', 'background: #ff9800; color: white', elementData?.options);
+ 
     // Définir l'option sélectionnée pour le style visuel
     setSelectedOption(optionText);
 
@@ -530,21 +536,71 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     const matchedOption = elementData?.options?.find(
       (opt: any) => opt.text === optionText
     );
+    
+    // Logs pour vérifier l'option trouvée et son targetNodeId
+    console.log('%c[DEBUG] Option trouvée:', 'background: #4caf50; color: white; font-weight: bold', matchedOption);
+    console.log('%c[DEBUG] targetNodeId:', 'background: #4caf50; color: white', matchedOption?.targetNodeId);
 
+    // Essayer d'abord avec le targetNodeId de l'option
     if (matchedOption && matchedOption.targetNodeId) {
       // Trouver le nœud cible
       const targetNode = flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
+      console.log('%c[DEBUG] Nœud cible trouvé via targetNodeId:', 'background: #2196f3; color: white', targetNode);
+      
       if (targetNode) {
+        console.log('%c[DEBUG] Navigation vers le nœud:', 'background: #9c27b0; color: white; font-weight: bold', targetNode.id);
         setCurrentNodeId(targetNode.id);
         processNodeElements(targetNode);
 
         // Réinitialiser l'option sélectionnée après le traitement
         setTimeout(() => setSelectedOption(null), 500);
+        return;
       }
-    } else {
-      // Réinitialiser l'option sélectionnée après un court délai si pas de navigation
-      setTimeout(() => setSelectedOption(null), 500);
     }
+    
+    // Si on arrive ici, c'est que l'option n'a pas de targetNodeId valide
+    // On va essayer de trouver la connexion correspondante dans les edges
+    console.log('%c[DEBUG] Recherche de connexion dans les edges...', 'background: #ff9800; color: white');
+    
+    if (currentNodeId && elementData.id) {
+      // Trouver l'index de l'option dans le tableau des options
+      const optionIndex = elementData.options.findIndex((opt: any) => opt.text === optionText);
+      
+      if (optionIndex !== -1) {
+        // Construire l'ID du handle de l'option (comme dans CustomNode.tsx)
+        const optionHandleId = `option-${elementData.id}-${optionIndex}`;
+        console.log('%c[DEBUG] Handle ID recherché:', 'background: #ff9800; color: white', optionHandleId);
+        
+        // Chercher une connexion qui part de ce handle
+        const matchingEdge = flowData.edges.find(edge => 
+          edge.source === currentNodeId && 
+          edge.sourceHandle === optionHandleId
+        );
+        
+        console.log('%c[DEBUG] Connexion trouvée:', 'background: #4caf50; color: white', matchingEdge);
+        
+        if (matchingEdge && matchingEdge.target) {
+          // Trouver le nœud cible via l'edge
+          const targetNode = flowData.nodes.find(node => node.id === matchingEdge.target);
+          console.log('%c[DEBUG] Nœud cible trouvé via edge:', 'background: #2196f3; color: white', targetNode);
+          
+          if (targetNode) {
+            console.log('%c[DEBUG] Navigation vers le nœud via edge:', 'background: #9c27b0; color: white; font-weight: bold', targetNode.id);
+            setCurrentNodeId(targetNode.id);
+            processNodeElements(targetNode);
+            
+            // Réinitialiser l'option sélectionnée après le traitement
+            setTimeout(() => setSelectedOption(null), 500);
+            return;
+          }
+        }
+      }
+    }
+    
+    // Si on arrive ici, c'est qu'on n'a pas trouvé de nœud cible
+    console.warn('%c[DEBUG] Aucune cible trouvée pour cette option!', 'background: #ff5722; color: white');
+    // Réinitialiser l'option sélectionnée après un court délai si pas de navigation
+    setTimeout(() => setSelectedOption(null), 500);
   };
 
   // Rendu du composant

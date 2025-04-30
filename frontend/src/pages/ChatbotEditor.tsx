@@ -36,6 +36,7 @@ import {
   ArrowsPointingInIcon,
   PaperAirplaneIcon,
   ArrowUpTrayIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { NodeData, NodeType, NODE_TYPES } from '../components/flowchart/NodeTypes';
 import CustomNode from '../components/flowchart/CustomNode';
@@ -243,40 +244,63 @@ const FlowEditor = () => {
 
       // Si c'est une connexion d'option, mettre à jour l'option dans le nœud source
       if (isOptionConnection) {
-        const [_, elementId, optionIndexStr] = params.sourceHandle?.split('-') || [];
-        const optionIndex = parseInt(optionIndexStr, 10);
+        const parts = params.sourceHandle?.split('-') || [];
+        // Format attendu: option-elementId-optionIndex
+        if (parts.length >= 3) {
+          const elementId = parts[1];
+          const optionIndexStr = parts[2];
+          const optionIndex = parseInt(optionIndexStr, 10);
 
-        if (!isNaN(optionIndex) && elementId) {
-          const updatedNodes = nodes.map((node) => {
-            if (node.id === params.source) {
-              // Trouver l'élément et mettre à jour l'option
-              const updatedElements = node.data?.elements?.map((element: any) => {
-                if (element.id === elementId && element.options) {
-                  const updatedOptions = [...element.options];
-                  if (updatedOptions[optionIndex]) {
-                    updatedOptions[optionIndex] = {
-                      ...updatedOptions[optionIndex],
-                      targetNodeId: params.target
-                    };
-                  }
-                  return { ...element, options: updatedOptions };
-                }
-                return element;
-              });
-
-              return {
-                ...node,
-                data: { ...node.data, elements: updatedElements }
-              };
-            }
-            return node;
+          console.log(`%c[DEBUG] Connexion d'option détectée:`, 'background: #4caf50; color: white', {
+            sourceNode: params.source,
+            targetNode: params.target,
+            elementId,
+            optionIndex
           });
 
-          updateNodes(updatedNodes);
+          if (!isNaN(optionIndex) && elementId) {
+            const updatedNodes = nodes.map((node) => {
+              if (node.id === params.source) {
+                // Trouver l'élément et mettre à jour l'option
+                const updatedElements = node.data?.elements?.map((element: any) => {
+                  if (element.id === elementId && element.options) {
+                    const updatedOptions = [...element.options];
+                    if (updatedOptions[optionIndex]) {
+                      console.log(`%c[DEBUG] Mise à jour targetNodeId:`, 'background: #2196f3; color: white', {
+                        option: updatedOptions[optionIndex],
+                        newTargetNodeId: params.target
+                      });
+                      
+                      updatedOptions[optionIndex] = {
+                        ...updatedOptions[optionIndex],
+                        targetNodeId: params.target
+                      };
+                    }
+                    return { ...element, options: updatedOptions };
+                  }
+                  return element;
+                });
+
+                return {
+                  ...node,
+                  data: { ...node.data, elements: updatedElements }
+                };
+              }
+              return node;
+            });
+
+            updateNodes(updatedNodes);
+            
+            // Afficher un toast pour confirmer la mise à jour
+            showToast({
+              type: 'success',
+              message: 'Connexion établie avec succès'
+            });
+          }
         }
       }
     },
-    [edges, nodes, updateEdges, updateNodes]
+    [edges, nodes, updateEdges, updateNodes, showToast]
   );
 
   const onNodeClick = useCallback(
@@ -310,23 +334,139 @@ const FlowEditor = () => {
       if (selectedNode.id === 'start') {
         return;
       }
+      
+      // Afficher une boîte de dialogue de confirmation
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Supprimer le nœud',
+        message: `Êtes-vous sûr de vouloir supprimer ce nœud "${selectedNode.data?.label || 'Sans titre'}" ? Cette action est irréversible.`,
+        onConfirm: () => {
+          // Filtrer les nœuds pour supprimer celui qui est sélectionné
+          const updatedNodes = nodes.filter(node => node.id !== selectedNode.id);
+          // Filtrer les edges pour supprimer celles liées au nœud
+          const updatedEdges = edges.filter(
+            edge => edge.source !== selectedNode.id && edge.target !== selectedNode.id
+          );
 
-      // Filtrer les nœuds pour supprimer celui qui est sélectionné
-      const updatedNodes = nodes.filter(node => node.id !== selectedNode.id);
-      // Filtrer les edges pour supprimer celles liées au nœud
-      const updatedEdges = edges.filter(
-        edge => edge.source !== selectedNode.id && edge.target !== selectedNode.id
-      );
+          // Mettre à jour le store
+          updateNodes(updatedNodes);
+          updateEdges(updatedEdges);
 
-      // Mettre à jour le store
-      updateNodes(updatedNodes);
-      updateEdges(updatedEdges);
-
-      setIsEditorOpen(false);
-      setContextMenu(null);
-      setSelectedNode(null);
+          setIsEditorOpen(false);
+          setContextMenu(null);
+          setSelectedNode(null);
+          
+          // Afficher une notification
+          showToast({
+            type: 'success',
+            message: 'Nœud supprimé avec succès!'
+          });
+        }
+      });
     }
-  }, [selectedNode, nodes, edges, updateNodes, updateEdges]);
+  }, [selectedNode, nodes, edges, updateNodes, updateEdges, setConfirmDialog, showToast]);
+
+  // Fonction pour synchroniser les targetNodeId des options avec les edges
+  const syncTargetNodeIds = useCallback(() => {
+    // Créer une copie des nœuds pour les mettre à jour
+    const updatedNodes = [...nodes];
+    let hasChanges = false;
+
+    // Parcourir tous les edges pour trouver les connexions d'options
+    edges.forEach(edge => {
+      if (edge.sourceHandle && edge.sourceHandle.startsWith('option-')) {
+        const [_, elementId, optionIndexStr] = edge.sourceHandle.split('-');
+        const optionIndex = parseInt(optionIndexStr, 10);
+        const sourceNodeId = edge.source;
+        const targetNodeId = edge.target;
+
+        if (!isNaN(optionIndex) && elementId && sourceNodeId && targetNodeId) {
+          // Trouver le nœud source
+          const sourceNodeIndex = updatedNodes.findIndex(node => node.id === sourceNodeId);
+          if (sourceNodeIndex >= 0) {
+            const sourceNode = updatedNodes[sourceNodeIndex];
+            // Trouver l'élément qui contient les options
+            const elementIndex = sourceNode.data?.elements?.findIndex((element: any) => element.id === elementId);
+            
+            if (elementIndex >= 0 && sourceNode.data.elements[elementIndex].options) {
+              // Vérifier si l'option existe et si le targetNodeId doit être mis à jour
+              if (sourceNode.data.elements[elementIndex].options[optionIndex] &&
+                  sourceNode.data.elements[elementIndex].options[optionIndex].targetNodeId !== targetNodeId) {
+                
+                // Mettre à jour le targetNodeId de l'option
+                const updatedElements = [...sourceNode.data.elements];
+                updatedElements[elementIndex] = {
+                  ...updatedElements[elementIndex],
+                  options: updatedElements[elementIndex].options.map((opt: any, idx: number) => {
+                    if (idx === optionIndex) {
+                      return { ...opt, targetNodeId };
+                    }
+                    return opt;
+                  })
+                };
+
+                // Mettre à jour le nœud
+                updatedNodes[sourceNodeIndex] = {
+                  ...sourceNode,
+                  data: { ...sourceNode.data, elements: updatedElements }
+                };
+                
+                hasChanges = true;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Si des changements ont été effectués, mettre à jour les nœuds
+    if (hasChanges) {
+      updateNodes(updatedNodes);
+    }
+    
+    return hasChanges;
+  }, [nodes, edges, updateNodes]);
+  
+  // Fonction de sauvegarde avec synchronisation des targetNodeId
+  const handleSave = useCallback(async () => {
+    // Synchroniser les targetNodeId avant la sauvegarde
+    const hasChanges = syncTargetNodeIds();
+    
+    // Sauvegarder manuellement
+    try {
+      await saveAssistant();
+      showToast({
+        type: 'success',
+        message: hasChanges 
+          ? 'Connexions synchronisées et flowchart sauvegardé avec succès!' 
+          : 'Flowchart sauvegardé avec succès!'
+      });
+    } catch (error) {
+      showToast({
+        type: 'error',
+        message: 'Impossible de sauvegarder le flowchart. Veuillez réessayer.'
+      });
+    }
+  }, [syncTargetNodeIds, saveAssistant, showToast]);
+  
+  // Gestionnaire d'événements pour le raccourci Ctrl+S
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Vérifier si c'est Ctrl+S ou Cmd+S (pour Mac)
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault(); // Empêcher le comportement par défaut du navigateur
+        handleSave();
+      }
+    };
+    
+    // Ajouter l'écouteur d'événements
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Nettoyer l'écouteur d'événements lors du démontage du composant
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleSave]);
 
   const duplicateNode = useCallback(() => {
     if (selectedNode) {
@@ -335,11 +475,31 @@ const FlowEditor = () => {
         return;
       }
 
+      // S'assurer que tous les targetNodeId sont synchronisés avant la duplication
+      syncTargetNodeIds();
+
       // Créer un nouvel ID unique pour le nœud dupliqué
       const newNodeId = `${selectedNode.data.type || 'node'}-${Date.now()}`;
 
       // Créer une copie profonde des données du nœud
       const nodeDataCopy = JSON.parse(JSON.stringify(selectedNode.data));
+
+      // Réinitialiser les targetNodeId dans les options du nœud dupliqué
+      // pour éviter des références incorrectes
+      if (nodeDataCopy.elements) {
+        nodeDataCopy.elements = nodeDataCopy.elements.map((element: any) => {
+          if (element.options) {
+            return {
+              ...element,
+              options: element.options.map((option: any) => ({
+                ...option,
+                targetNodeId: undefined // Réinitialiser les targetNodeId
+              }))
+            };
+          }
+          return element;
+        });
+      }
 
       // Créer le nouveau nœud avec les mêmes données mais un nouvel ID
       const newNode = {
@@ -358,17 +518,17 @@ const FlowEditor = () => {
 
       // Ajouter le nouveau nœud au graphe
       updateNodes([...nodes, newNode]);
-
-      // Fermer l'éditeur du nœud actuel
+      
+      // Afficher une notification de succès
+      showToast({
+        type: 'success',
+        message: 'Nœud dupliqué avec succès!'
+      });
+      
+      // Fermer l'éditeur du nœud actuel si ouvert
       setIsEditorOpen(false);
-
-      // Sélectionner le nouveau nœud et ouvrir son éditeur
-      setTimeout(() => {
-        setSelectedNode(newNode);
-        setIsEditorOpen(true);
-      }, 100);
     }
-  }, [selectedNode, nodes, updateNodes]);
+  }, [selectedNode, nodes, updateNodes, syncTargetNodeIds]);
 
   // Fonction pour ajouter un nouveau nœud
   const addNode = useCallback((nodeData: NodeData | NodeType) => {
@@ -433,6 +593,9 @@ const FlowEditor = () => {
         <button
           onClick={async () => {
             if (!assistantId || !nodes.length) return;
+            
+            // Synchroniser les targetNodeId avant l'exportation
+            syncTargetNodeIds();
 
             // On va chercher toutes les infos de l'assistant courant
             let assistantData = null;
@@ -469,7 +632,6 @@ const FlowEditor = () => {
               public_id: assistantData.publicId || null,
               public_url: assistantData.publicUrl || null,
               embed_script: assistantData.embedScript || null,
-              // Ajoute d'autres champs si besoin...
             };
 
             const data = JSON.stringify(exportData, null, 2);
@@ -496,30 +658,21 @@ const FlowEditor = () => {
           className="flex items-center px-2 py-1 text-xs bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors min-h-0 min-w-0"
         >
           <ArrowUpTrayIcon className="w-5 h-5 mr-2" />
-          Exporter l’assistant
+          Exporter l'assistant
         </button>
         <button
-          onClick={() => {
-            // Sauvegarder manuellement
-            saveAssistant().then(() => {
-              showToast({
-                type: 'success',
-                message: 'Flowchart sauvegardé avec succès!'
-              });
-            }).catch(() => {
-              showToast({
-                type: 'error',
-                message: 'Impossible de sauvegarder le flowchart. Veuillez réessayer.'
-              });
-            });
-          }}
+          onClick={handleSave}
           className="flex items-center px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors min-h-0 min-w-0"
         >
           <CheckCircleIcon className="w-5 h-5 mr-2" />
           Sauvegarder
         </button>
         <button
-          onClick={() => setIsPreviewOpen(true)}
+          onClick={() => {
+            // Synchroniser les targetNodeId avant d'ouvrir la prévisualisation
+            syncTargetNodeIds();
+            setIsPreviewOpen(true);
+          }}
           className="flex items-center px-2 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors min-h-0 min-w-0"
         >
           <EyeIcon className="w-5 h-5 mr-2" />
@@ -543,6 +696,9 @@ const FlowEditor = () => {
                 : 'Voulez-vous publier cet assistant ? Il sera accessible publiquement via un lien dédié.',
               onConfirm: async () => {
                 try {
+                  // Synchroniser les targetNodeId avant la sauvegarde et publication
+                  syncTargetNodeIds();
+                  
                   // Sauvegarder automatiquement l'assistant avant de le publier
                   const saveResult = await saveAssistant();
                   
@@ -696,7 +852,12 @@ const FlowEditor = () => {
               setIsEditorOpen(true);
               setContextMenu(null);
             }}
+            onDuplicate={contextMenu.id !== 'start' ? () => {
+              duplicateNode();
+              setContextMenu(null);
+            } : undefined}
             onDelete={contextMenu.id !== 'start' ? deleteNode : undefined}
+            nodeType={selectedNode?.data?.type}
           />
         )}
       </div>

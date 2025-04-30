@@ -200,6 +200,73 @@ const AssistantService = {
     }
   },
 
+  // Fonction utilitaire pour synchroniser les targetNodeId dans les options avec les edges
+  syncTargetNodeIds(data: { nodes: any[], edges: any[] }): { nodes: any[], edges: any[] } {
+    if (!data.nodes || !data.edges || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+      return data;
+    }
+
+    const updatedNodes = [...data.nodes];
+    let hasChanges = false;
+
+    // Parcourir tous les edges pour trouver les connexions d'options
+    data.edges.forEach(edge => {
+      if (edge.sourceHandle && edge.sourceHandle.startsWith('option-')) {
+        const parts = edge.sourceHandle.split('-');
+        if (parts.length >= 3) {
+          const elementId = parts[1];
+          const optionIndexStr = parts[2];
+          const optionIndex = parseInt(optionIndexStr, 10);
+          const sourceNodeId = edge.source;
+          const targetNodeId = edge.target;
+
+          if (!isNaN(optionIndex) && elementId && sourceNodeId && targetNodeId) {
+            // Trouver le nœud source
+            const sourceNodeIndex = updatedNodes.findIndex(node => node.id === sourceNodeId);
+            if (sourceNodeIndex >= 0) {
+              const sourceNode = updatedNodes[sourceNodeIndex];
+              
+              // Vérifier si le nœud a des données et des éléments
+              if (sourceNode.data && sourceNode.data.elements) {
+                // Trouver l'élément qui contient les options
+                const elementIndex = sourceNode.data.elements.findIndex((element: any) => element.id === elementId);
+                
+                if (elementIndex >= 0 && sourceNode.data.elements[elementIndex].options) {
+                  // Vérifier si l'option existe et si le targetNodeId doit être mis à jour
+                  if (sourceNode.data.elements[elementIndex].options[optionIndex] &&
+                      sourceNode.data.elements[elementIndex].options[optionIndex].targetNodeId !== targetNodeId) {
+                    
+                    // Mettre à jour le targetNodeId de l'option
+                    const updatedElements = [...sourceNode.data.elements];
+                    updatedElements[elementIndex] = {
+                      ...updatedElements[elementIndex],
+                      options: updatedElements[elementIndex].options.map((opt: any, idx: number) => {
+                        if (idx === optionIndex) {
+                          return { ...opt, targetNodeId };
+                        }
+                        return opt;
+                      })
+                    };
+
+                    // Mettre à jour le nœud
+                    updatedNodes[sourceNodeIndex] = {
+                      ...sourceNode,
+                      data: { ...sourceNode.data, elements: updatedElements }
+                    };
+                    
+                    hasChanges = true;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return hasChanges ? { nodes: updatedNodes, edges: data.edges } : data;
+  },
+
   // Importer un assistant depuis un fichier JSON
   async importFromJson(jsonData: any): Promise<Assistant> {
     try {
@@ -210,8 +277,12 @@ const AssistantService = {
         throw new Error('Le fichier JSON ne contient pas les données nécessaires (name, nodes, edges)');
       }
       
+      // Synchroniser les targetNodeId dans les options avec les edges
+      const syncedData = this.syncTargetNodeIds(jsonData);
+      console.log('🔄 Synchronisation des targetNodeId effectuée');
+      
       // Créer l'assistant avec apiClient
-      const response = await apiClient.post('/assistants/', jsonData);
+      const response = await apiClient.post('/assistants/', syncedData);
       
       console.log('✅ Assistant importé avec succès:', response.data.id);
       return response.data;

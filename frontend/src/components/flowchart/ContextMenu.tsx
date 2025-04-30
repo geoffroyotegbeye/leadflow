@@ -1,16 +1,17 @@
 import React from 'react';
 import { Menu } from '@headlessui/react';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 
 interface ContextMenuProps {
   x: number;
   y: number;
   onEdit: () => void;
   onDelete?: () => void;
+  onDuplicate?: () => void;
   nodeType?: string; // Ajouté pour savoir si c'est un start
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onEdit, onDelete, nodeType }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onEdit, onDelete, onDuplicate, nodeType }) => {
   return (
     <div
       className="fixed z-50"
@@ -28,6 +29,15 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onEdit, onDelete, nodeT
             <PencilIcon className="mr-3 h-5 w-5 text-gray-400" />
             Éditer
           </button>
+          {onDuplicate && nodeType !== 'start' && (
+            <button
+              onClick={onDuplicate}
+              className="flex items-center w-full px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+            >
+              <DocumentDuplicateIcon className="mr-3 h-5 w-5 text-blue-400" />
+              Dupliquer
+            </button>
+          )}
           {onDelete && nodeType !== 'start' && (
             <button
               onClick={onDelete}

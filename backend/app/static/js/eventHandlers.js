@@ -84,26 +84,77 @@ const handleOptionClick = async (event) => {
   });
   
   // Trouver le nœud cible pour cette option
+  console.log('Navigation: option sélectionnée', selectedOption);
+  
+  // Stratégie 1: Utiliser le targetNodeId de l'option si disponible
   if (selectedOption.targetNodeId) {
+    console.log('Navigation: utilisation du targetNodeId', selectedOption.targetNodeId);
     const targetNode = state.flowData.nodes.find(node => node.id === selectedOption.targetNodeId);
     if (targetNode) {
+      console.log('Navigation: nœud cible trouvé via targetNodeId', targetNode.id);
       state.currentNodeId = targetNode.id;
       await processNodeElements(targetNode);
       return;
+    } else {
+      console.warn('Navigation: targetNodeId défini mais nœud cible non trouvé', selectedOption.targetNodeId);
     }
+  } else {
+    console.log('Navigation: pas de targetNodeId défini, recherche via edges');
   }
   
-  // Si pas de nœud cible spécifique, suivre le flux normal
+  // Stratégie 2: Rechercher l'edge correspondant à l'option
   const currentNode = state.flowData.nodes.find(node => node.id === state.currentNodeId);
   if (currentNode) {
+    // Construire l'ID du handle source basé sur l'index de l'option
+    const optionIndex = message.elementData.options.findIndex(opt => opt.text === option);
+    if (optionIndex !== -1) {
+      // Trouver l'ID de l'élément qui contient les options (généralement un élément de type question)
+      const elementId = message.elementData.id || message.nodeId;
+      const sourceHandleId = `option-${elementId}-${optionIndex}`;
+      console.log('Navigation: recherche d\'edge avec sourceHandle', sourceHandleId);
+      
+      // Trouver l'edge qui correspond à cette option spécifique
+      const matchingEdge = state.flowData.edges.find(edge => 
+        edge.source === currentNode.id && 
+        edge.sourceHandle === sourceHandleId
+      );
+      
+      if (matchingEdge) {
+        console.log('Navigation: edge correspondant trouvé', matchingEdge);
+        const targetNode = state.flowData.nodes.find(node => node.id === matchingEdge.target);
+        if (targetNode) {
+          console.log('Navigation: nœud cible trouvé via edge', targetNode.id);
+          state.currentNodeId = targetNode.id;
+          await processNodeElements(targetNode);
+          return;
+        } else {
+          console.warn('Navigation: edge trouvé mais nœud cible non trouvé', matchingEdge.target);
+        }
+      } else {
+        console.warn('Navigation: aucun edge trouvé pour le sourceHandle', sourceHandleId);
+      }
+    } else {
+      console.warn('Navigation: impossible de déterminer l\'index de l\'option');
+    }
+    
+    // Stratégie 3 (fallback): Utiliser n'importe quelle connexion sortante du nœud actuel
+    console.log('Navigation: fallback - recherche de n\'importe quelle connexion sortante');
     const outgoingEdge = state.flowData.edges.find(edge => edge.source === currentNode.id);
     if (outgoingEdge) {
+      console.log('Navigation: connexion sortante trouvée', outgoingEdge);
       const nextNode = state.flowData.nodes.find(node => node.id === outgoingEdge.target);
       if (nextNode) {
+        console.log('Navigation: nœud cible trouvé via fallback', nextNode.id);
         state.currentNodeId = nextNode.id;
         await processNodeElements(nextNode);
+      } else {
+        console.warn('Navigation: edge trouvé mais nœud cible non trouvé (fallback)', outgoingEdge.target);
       }
+    } else {
+      console.warn('Navigation: aucune connexion sortante trouvée pour le nœud actuel');
     }
+  } else {
+    console.error('Navigation: nœud actuel non trouvé', state.currentNodeId);
   }
 };
 
