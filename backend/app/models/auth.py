@@ -34,7 +34,7 @@ class UserResponse(BaseModel):
     company_name: Optional[str] = None
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "60d6e5c8b587d12345678901",
                 "email": "user@example.com",
