@@ -20,6 +20,7 @@ import AnalyticsPage from '../pages/AnalyticsPage';
 import LeadsPage from '../pages/LeadsPage';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
+import ChatWindow from '../components/externalPreview/ChatWindow';
 
 const Routes: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -139,6 +140,9 @@ const Routes: React.FC = () => {
           </DashboardLayout>
         </ProtectedRoute>
       } />
+      {/* je met en place cette route pour voir et tester mon travail */}
+      <Route path="/chat" element={ <ChatWindow />}
+      />
       {/* Catch-all route pour 404 */}
       <Route path="*" element={<NotFoundPage />} />
     </RouterRoutes>
