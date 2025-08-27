@@ -1,15 +1,26 @@
-import Message from "./Message";
+import React from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { ChatMessage } from './types';
 
-type MessageListProps = {
-  messages: { sender: "user" | "bot"; text: string }[];
-};
+interface MessageListProps {
+  children: React.ReactNode;
+  messages: ChatMessage[];
+}
 
-export default function MessageList({ messages }: MessageListProps) {
+const MessageList: React.FC<MessageListProps> = ({ children, messages }) => {
   return (
-    <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-      {messages.map((msg, index) => (
-        <Message key={index} sender={msg.sender} text={msg.text} />
-      ))}
+    <div className="space-y-4">
+      <AnimatePresence>
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+            <p>Aucun message</p>
+          </div>
+        ) : (
+          children
+        )}
+      </AnimatePresence>
     </div>
   );
-}
+};
+
+export default MessageList;
