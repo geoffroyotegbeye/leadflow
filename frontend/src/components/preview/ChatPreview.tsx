@@ -28,89 +28,51 @@ const InlineMultiFieldFormMessage: React.FC<InlineMultiFieldFormMessageProps> = 
 }) => {
   if (!element.formFields) return null;
 
-  // On n'affiche la description dans le formulaire que si elle n'a pas déjà été affichée comme message
   const showDescriptionInForm = !element.formDescriptionAsMessage;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userInput.trim()) return;
+  const handleSubmit = (values: Record<string, any>) => {
+    const formattedContent = Object.entries(values)
+      .map(([key, value]) => {
+        const field = element.formFields?.find((f: {name: string, label?: string}) => f.name === key);
+        const label = field?.label || key;
+        return `${label}: ${value}`;
+      })
+      .join('\n');
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      content: userInput,
-      type: 'text',
-      sender: 'user',
-      timestamp: Date.now(),
-      visible: true
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setUserInput('');
+    setMessages(prev => [
+      ...prev,
+      {
+        id: `user-form-${Date.now()}`,
+        content: formattedContent,
+        type: 'form',
+        sender: 'user',
+        timestamp: Date.now(),
+        visible: true,
+        elementData: { formValues: values }
+      }
+    ]);
 
-    const lastBotMessage = [...messages].reverse().find(
-      msg => msg.sender === 'bot' && msg.options && msg.options.length > 0
-    );
-
-    if (lastBotMessage && lastBotMessage.elementData) {
-      const matchedOption = lastBotMessage.elementData.options.find(
-        (opt: any) => opt.text.toLowerCase() === userInput.toLowerCase()
-      );
-
-      if (matchedOption) {
-        const optionIndex = lastBotMessage.elementData.options.findIndex(
-          (opt: any) => opt.text.toLowerCase() === userInput.toLowerCase()
-        );
-        const questionId = lastBotMessage.elementData.id;
-        const sourceHandle = `option-${questionId}-${optionIndex}`;
-
-        const nextEdge = flowData.edges.find(
-          (e: any) => e.source === currentNodeId && e.sourceHandle === sourceHandle
-        );
-
-        if (nextEdge) {
-          const targetNode = flowData.nodes.find(node => node.id === nextEdge.target);
-          if (targetNode) {
-            setCurrentNodeId(targetNode.id);
-            processNodeElements(targetNode);
-          } else {
-            console.warn(`Nœud cible non trouvé pour l'edge : ${nextEdge.target}`);
-          }
-        } else {
-          setMessages(prev => [
-            ...prev,
-            {
-              id: `bot-${Date.now()}-error`,
-              content: "Je n'ai pas compris votre réponse. Veuillez choisir l'une des options proposées.",
-              type: 'text',
-              sender: 'bot',
-              timestamp: Date.now(),
-              isTyping: true,
-              visible: false
-            }
-          ]);
-          setTimeout(() => {
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === `bot-${Date.now()}-error` ? { ...msg, isTyping: false, visible: true } : msg
-              )
-            );
-          }, 1500);
-        }
-      } else {
-        // Même gestion d'erreur
+    const nextEdge = flowData.edges.find(e => e.source === currentNodeId && !e.sourceHandle);
+    if (nextEdge) {
+      const nextNode = flowData.nodes.find(n => n.id === nextEdge.target);
+      if (nextNode) {
+        setCurrentNodeId(nextNode.id);
+        processNodeElements(nextNode);
       }
     }
   };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.3 }}
-      className="mt-4 mb-2 mx-2"
+      className="mt-4 mb-2 mx-2 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm"
     >
-      <InlineMultiFieldForm
-        fields={element.formFields}
-        onSubmit={handleSubmit}
-        description={showDescriptionInForm ? element.formDescription : undefined}
+      <InlineMultiFieldForm 
+        fields={element.formFields} 
+        onSubmit={handleSubmit} 
+        description={showDescriptionInForm ? element.formDescription : undefined} 
       />
     </motion.div>
   );
@@ -255,18 +217,116 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Traiter les éléments d'un nœud
+  // const processNodeElements = useCallback((node: any) => {
+  //   if (!node.data?.elements) return;
+
+  //   // Vérifier si c'est un nœud de type END
+  //   const isEndNode = node.data.type === NodeType.END || node.data.type === 'end';
+  //   // Pour la prévisualisation, ne rien faire côté session
+
+  //   const processSequentially = (elements: any[], index: number) => {
+  //     if (index >= elements.length) return;
+  //     const element = elements[index];
+
+  //     // Si c'est un formulaire avec une description, ajouter d'abord la description comme message
+  //     if (element.type === 'form' && element.formDescription) {
+  //       const descriptionMessage: ChatMessage = {
+  //         id: `bot-${Date.now()}-form-desc`,
+  //         content: element.formDescription,
+  //         type: 'text',
+  //         sender: 'bot',
+  //         timestamp: Date.now(),
+  //         isTyping: true,
+  //         visible: false
+  //       };
+
+  //       setMessages(prev => [...prev, descriptionMessage]);
+
+  //       // Afficher la description après un délai
+  //       setTimeout(() => {
+  //         setMessages(prev =>
+  //           prev.map(msg =>
+  //             msg.id === descriptionMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+  //           )
+  //         );
+
+  //         // Ensuite traiter l'élément formulaire normalement
+  //         setTimeout(() => {
+  //           // N'afficher le formulaire que si la description est visible
+  //           const newMessage: ChatMessage = {
+  //             id: `bot-${Date.now()}-${index}`,
+  //             content: '', // S'assurer qu'il n'y a pas de texte inutile
+  //             type: element.type,
+  //             sender: 'bot',
+  //             timestamp: Date.now(),
+  //             isTyping: true,
+  //             visible: false,
+  //             elementData: { ...element, formDescriptionAsMessage: true }
+  //           };
+
+  //           setMessages(prev => [...prev, newMessage]);
+
+  //           setTimeout(() => {
+  //             setMessages(prev =>
+  //               prev.map(msg =>
+  //                 msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+  //               )
+  //             );
+
+  //             setTimeout(() => {
+  //               processSequentially(elements, index + 1);
+  //             }, 600);
+  //           }, 1500 + Math.random() * 800);
+  //         }, 1800); // Délai augmenté à 1800ms pour laisser le temps de lire la description
+  //       }, 1500 + Math.random() * 800);
+
+  //       return;
+  //     }
+
+  //     // Traitement normal pour les autres types d'éléments
+  //     const newMessage: ChatMessage = {
+  //       id: `bot-${Date.now()}-${index}`,
+  //       content: element.content || '',
+  //       type: element.type,
+  //       sender: 'bot',
+  //       timestamp: Date.now(),
+  //       isTyping: true,
+  //       visible: false
+  //     };
+  //     // Stocker les données de l'élément dans le message
+  //     newMessage.elementData = element;
+  //     if (element.type === 'question' && element.options && element.options.length > 0) {
+  //       newMessage.options = element.options.map((opt: any) => opt.text);
+  //     } else if (element.type === 'input') {
+  //       console.log('Élément input détecté:', element);
+  //     } else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
+  //       console.log(`Élément ${element.type} détecté:`, element);
+  //     }
+  //     setMessages(prev => [...prev, newMessage]);
+  //     setTimeout(() => {
+  //       setMessages(prev =>
+  //         prev.map(msg =>
+  //           msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+  //         )
+  //       );
+  //       setTimeout(() => {
+  //         processSequentially(elements, index + 1);
+  //       }, 600);
+  //     }, 1500 + Math.random() * 800);
+  //   };
+  //   processSequentially(node.data.elements, 0);
+  // }, []);
+
   const processNodeElements = useCallback((node: any) => {
     if (!node.data?.elements) return;
 
-    // Vérifier si c'est un nœud de type END
     const isEndNode = node.data.type === NodeType.END || node.data.type === 'end';
-    // Pour la prévisualisation, ne rien faire côté session
 
     const processSequentially = (elements: any[], index: number) => {
       if (index >= elements.length) return;
       const element = elements[index];
 
-      // Si c'est un formulaire avec une description, ajouter d'abord la description comme message
+      // Gestion spéciale pour les formulaires
       if (element.type === 'form' && element.formDescription) {
         const descriptionMessage: ChatMessage = {
           id: `bot-${Date.now()}-form-desc`,
@@ -277,51 +337,39 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
           isTyping: true,
           visible: false
         };
-
         setMessages(prev => [...prev, descriptionMessage]);
-
-        // Afficher la description après un délai
         setTimeout(() => {
           setMessages(prev =>
             prev.map(msg =>
               msg.id === descriptionMessage.id ? { ...msg, isTyping: false, visible: true } : msg
             )
           );
-
-          // Ensuite traiter l'élément formulaire normalement
           setTimeout(() => {
-            // N'afficher le formulaire que si la description est visible
-            const newMessage: ChatMessage = {
+            const formMessage: ChatMessage = {
               id: `bot-${Date.now()}-${index}`,
-              content: '', // S'assurer qu'il n'y a pas de texte inutile
-              type: element.type,
+              content: '',
+              type: 'form',
               sender: 'bot',
               timestamp: Date.now(),
               isTyping: true,
               visible: false,
               elementData: { ...element, formDescriptionAsMessage: true }
             };
-
-            setMessages(prev => [...prev, newMessage]);
-
+            setMessages(prev => [...prev, formMessage]);
             setTimeout(() => {
               setMessages(prev =>
                 prev.map(msg =>
-                  msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
+                  msg.id === formMessage.id ? { ...msg, isTyping: false, visible: true } : msg
                 )
               );
-
-              setTimeout(() => {
-                processSequentially(elements, index + 1);
-              }, 600);
+              setTimeout(() => processSequentially(elements, index + 1), 600);
             }, 1500 + Math.random() * 800);
-          }, 1800); // Délai augmenté à 1800ms pour laisser le temps de lire la description
+          }, 1800);
         }, 1500 + Math.random() * 800);
-
         return;
       }
 
-      // Traitement normal pour les autres types d'éléments
+      // Gestion des autres types (text, question, input, etc.)
       const newMessage: ChatMessage = {
         id: `bot-${Date.now()}-${index}`,
         content: element.content || '',
@@ -331,14 +379,9 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         isTyping: true,
         visible: false
       };
-      // Stocker les données de l'élément dans le message
       newMessage.elementData = element;
       if (element.type === 'question' && element.options && element.options.length > 0) {
         newMessage.options = element.options.map((opt: any) => opt.text);
-      } else if (element.type === 'input') {
-        console.log('Élément input détecté:', element);
-      } else if (['image', 'video', 'audio', 'file'].includes(element.type)) {
-        console.log(`Élément ${element.type} détecté:`, element);
       }
       setMessages(prev => [...prev, newMessage]);
       setTimeout(() => {
@@ -347,9 +390,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
             msg.id === newMessage.id ? { ...msg, isTyping: false, visible: true } : msg
           )
         );
-        setTimeout(() => {
-          processSequentially(elements, index + 1);
-        }, 600);
+        setTimeout(() => processSequentially(elements, index + 1), 600);
       }, 1500 + Math.random() * 800);
     };
     processSequentially(node.data.elements, 0);
@@ -539,98 +580,36 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     }
   };
 
-  // Gérer le clic sur une option
-  // const handleOptionClick = (optionText: string, elementData: any) => {
-  //   // Définir l'option sélectionnée pour le style visuel
-  //   setSelectedOption(optionText);
-
-  //   // Ajouter le message de l'utilisateur avec l'option choisie
-  //   const userMessage: ChatMessage = {
-  //     id: `user-${Date.now()}`,
-  //     content: optionText,
-  //     type: 'text',
-  //     sender: 'user',
-  //     timestamp: Date.now(),
-  //     visible: true // Les messages de l'utilisateur sont immédiatement visibles
-  //   };
-
-  //   setMessages(prev => [...prev, userMessage]);
-
-  //   // Trouver l'option correspondante dans les données de l'élément
-  //   const matchedOption = elementData?.options?.find(
-  //     (opt: any) => opt.text === optionText
-  //   );
-
-  //   if (matchedOption && matchedOption.targetNodeId) {
-  //     // Trouver le nœud cible
-  //     const targetNode = flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
-  //     if (targetNode) {
-  //       setCurrentNodeId(targetNode.id);
-  //       processNodeElements(targetNode);
-
-  //       // Réinitialiser l'option sélectionnée après le traitement
-  //       setTimeout(() => setSelectedOption(null), 500);
-  //     }
-  //   } else {
-  //     // Réinitialiser l'option sélectionnée après un court délai si pas de navigation
-  //     setTimeout(() => setSelectedOption(null), 500);
-  //   }
-  // };
   const handleOptionClick = (optionText: string, elementData: any) => {
-    setSelectedOption(optionText);
+  setSelectedOption(optionText);
+  const userMessage: ChatMessage = {
+    id: `user-${Date.now()}`,
+    content: optionText,
+    type: 'text',
+    sender: 'user',
+    timestamp: Date.now(),
+    visible: true
+  };
+  setMessages(prev => [...prev, userMessage]);
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      content: optionText,
-      type: 'text',
-      sender: 'user',
-      timestamp: Date.now(),
-      visible: true
-    };
-    setMessages(prev => [...prev, userMessage]);
-
-    const matchedOption = elementData?.options?.find((opt: any) => opt.text === optionText);
-    if (matchedOption) {
-      const optionIndex = elementData.options.findIndex((opt: any) => opt.text === optionText);
-      const questionId = elementData.id; // ID de l'élément question
-      const sourceHandle = `option-${questionId}-${optionIndex}`; // Construit comme dans les edges
-
-      const nextEdge = flowData.edges.find(
-        (e: any) => e.source === currentNodeId && e.sourceHandle === sourceHandle
-      );
-      if (nextEdge) {
-        const targetNode = flowData.nodes.find((node: any) => node.id === nextEdge.target);
-        if (targetNode) {
-          setCurrentNodeId(targetNode.id);
-          processNodeElements(targetNode);
-          setTimeout(() => setSelectedOption(null), 500);
-        } else {
-          console.warn(`Nœud cible non trouvé pour l'edge : ${nextEdge.target}`);
-        }
-      } else {
-        console.warn(`Aucune edge trouvée pour sourceHandle : ${sourceHandle}`);
-        setMessages(prev => [
-          ...prev,
-          {
-            id: `bot-${Date.now()}-error`,
-            content: "Erreur : impossible de trouver la suite de la conversation.",
-            type: 'text',
-            sender: 'bot',
-            timestamp: Date.now(),
-            isTyping: true,
-            visible: false
-          }
-        ]);
-        setTimeout(() => {
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === `bot-${Date.now()}-error` ? { ...msg, isTyping: false, visible: true } : msg
-            )
-          );
-        }, 1500);
+  const matchedOption = elementData?.options?.find((opt: any) => opt.text === optionText);
+  if (matchedOption) {
+    const optionIndex = elementData.options.findIndex((opt: any) => opt.text === optionText);
+    const questionId = elementData.id;
+    const sourceHandle = `option-${questionId}-${optionIndex}`;
+    const nextEdge = flowData.edges.find(
+      (e: any) => e.source === currentNodeId && e.sourceHandle === sourceHandle
+    );
+    if (nextEdge) {
+      const targetNode = flowData.nodes.find((node: any) => node.id === nextEdge.target);
+      if (targetNode) {
+        setCurrentNodeId(targetNode.id);
+        processNodeElements(targetNode);
+        setTimeout(() => setSelectedOption(null), 500);
       }
     }
-  };
+  }
+};
 
   // Rendu du composant
   if (!isOpen) return null;
@@ -686,7 +665,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
           </div>
         ) : (
           messages.map((message, idx) => {
-            // Déterminer si l'entête Bot doit être affichée
             let showBotHeader = false;
             if (message.sender === 'bot') {
               if (idx === 0 || messages[idx - 1].sender !== 'bot') {
@@ -705,8 +683,8 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                   >
                     <div
                       className={`max-w-[80%] rounded-lg p-3 ${message.sender === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                         }`}
                     >
                       {message.sender === 'user' ? null : (
@@ -731,55 +709,47 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           className="text-sm"
                         >
                           {message.type === 'form' ? (
-                            <div className="form-response">
-                              {message.content.split('\n').map((line, idx) => {
-                                const [label, value] = line.split(': ');
-                                return (
-                                  <div key={idx} className="mb-1">
-                                    <span className="font-semibold">{label}:</span> {value}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                            <InlineMultiFieldFormMessage
+                              element={message.elementData}
+                              setMessages={setMessages}
+                              currentNodeId={currentNodeId}
+                              setCurrentNodeId={setCurrentNodeId}
+                              flowData={flowData}
+                              processNodeElements={processNodeElements}
+                            />
+                          ) : message.type === 'input' ? (
+                            <InlineInputField
+                              message={message}
+                              setMessages={setMessages}
+                              currentNodeId={currentNodeId}
+                              setCurrentNodeId={setCurrentNodeId}
+                              flowData={flowData}
+                              processNodeElements={processNodeElements}
+                            />
                           ) : message.type === 'image' && message.elementData?.mediaUrl ? (
                             <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
-                              <div className="relative w-full">
-                                <img
-                                  src={message.elementData.mediaUrl}
-                                  alt={message.content || 'Image'}
-                                  className="max-w-full rounded-t-lg max-h-64 object-contain mx-auto p-2"
-                                  onError={(e) => {
-                                    console.error("Erreur de chargement d'image:", message.elementData.mediaUrl);
-                                    e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+non+disponible';
-                                  }}
-                                />
-                              </div>
+                              <img
+                                src={message.elementData.mediaUrl}
+                                alt={message.content || 'Image'}
+                                className="max-w-full rounded-t-lg max-h-64 object-contain mx-auto p-2"
+                                onError={(e) => {
+                                  e.currentTarget.src = 'https://via.placeholder.com/400x300?text=Image+non+disponible';
+                                }}
+                              />
                               {message.content && <p className="p-3 text-sm border-t border-gray-100 dark:border-gray-700">{message.content}</p>}
                             </div>
                           ) : message.type === 'video' && message.elementData?.mediaUrl ? (
                             <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm">
-                              <div className="relative w-full">
-                                <video
-                                  src={message.elementData.mediaUrl}
-                                  controls
-                                  className="max-w-full rounded-t-lg max-h-64 mx-auto p-2"
-                                  onError={(e) => {
-                                    console.error("Erreur de chargement vidéo:", message.elementData.mediaUrl);
-                                  }}
-                                />
-                              </div>
+                              <video
+                                src={message.elementData.mediaUrl}
+                                controls
+                                className="max-w-full rounded-t-lg max-h-64 mx-auto p-2"
+                              />
                               {message.content && <p className="p-3 text-sm border-t border-gray-100 dark:border-gray-700">{message.content}</p>}
                             </div>
                           ) : message.type === 'audio' && message.elementData?.mediaUrl ? (
                             <div className="media-container bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm p-3">
-                              <audio
-                                src={message.elementData.mediaUrl}
-                                controls
-                                className="w-full"
-                                onError={(e) => {
-                                  console.error("Erreur de chargement audio:", message.elementData.mediaUrl);
-                                }}
-                              />
+                              <audio src={message.elementData.mediaUrl} controls className="w-full" />
                               {message.content && <p className="mt-2 text-sm">{message.content}</p>}
                             </div>
                           ) : message.type === 'file' && message.elementData?.fileUrl ? (
@@ -790,7 +760,7 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg my-2 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                                 </svg>
                                 {message.content || 'Télécharger le fichier'}
@@ -801,7 +771,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                           )}
                         </motion.div>
                       )}
-                      {/* Afficher les options si présentes et que le message n'est plus en train d'être tapé */}
                       {message.sender === 'bot' && !message.isTyping && (
                         (message.options && message.options.length > 0) || (message.elementData?.options && message.elementData.options.length > 0)
                       ) && (
@@ -812,7 +781,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                             className="mt-2 space-y-1"
                           >
                             <div className="grid grid-cols-2 gap-2 py-2">
-                              {/* Si nous avons des options avec images dans elementData (nouveau format) */}
                               {message.elementData?.options && message.elementData.options.length > 0 ? (
                                 message.elementData.options.map((option: any, index: number) => (
                                   <button
@@ -839,7 +807,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                                   </button>
                                 ))
                               ) : (
-                                /* Convertir les options texte simples (ancien format) en nouveau format */
                                 message.options && message.options.map((option, index) => (
                                   <button
                                     key={index}
@@ -856,17 +823,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
                             </div>
                           </motion.div>
                         )}
-                      {/* Afficher le champ de saisie directement dans la conversation pour les entrées libres */}
-                      {message.sender === 'bot' && !message.isTyping && message.type === 'input' && message.elementData && (
-                        <InlineInputField
-                          message={message}
-                          setMessages={setMessages}
-                          currentNodeId={currentNodeId}
-                          setCurrentNodeId={setCurrentNodeId}
-                          flowData={flowData}
-                          processNodeElements={processNodeElements}
-                        />
-                      )}
                     </div>
                   </motion.div>
                 )}
