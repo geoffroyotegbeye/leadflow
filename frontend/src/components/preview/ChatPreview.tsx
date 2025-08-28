@@ -602,29 +602,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   };
   setMessages(prev => [...prev, userMessage]);
 
-<<<<<<< HEAD
-    // Ajouter le message de l'utilisateur avec l'option choisie
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      content: optionText,
-      type: 'text',
-      sender: 'user',
-      timestamp: Date.now(),
-      visible: true // Les messages de l'utilisateur sont immédiatement visibles
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-
-    // Améliorer la recherche d'option
-    const matchedOption = elementData?.options?.find((opt: any) => {
-      const optionText = typeof opt === 'string' ? opt : opt.text;
-      return optionText === optionText;
-    });
-
-    if (matchedOption?.targetNodeId) {
-      // Trouver le nœud cible
-      const targetNode = flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
-=======
   const matchedOption = elementData?.options?.find((opt: any) => opt.text === optionText);
   if (matchedOption) {
     const optionIndex = elementData.options.findIndex((opt: any) => opt.text === optionText);
@@ -635,7 +612,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     );
     if (nextEdge) {
       const targetNode = flowData.nodes.find((node: any) => node.id === nextEdge.target);
->>>>>>> origin/Staging
       if (targetNode) {
         setCurrentNodeId(targetNode.id);
         processNodeElements(targetNode);
