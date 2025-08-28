@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline';
-import { ChatMessage } from './types';
+import { ChatMessage } from '../../types/types';
 
 interface ChatInputProps {
   userInput: string;
@@ -96,7 +96,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             className="flex-1 rounded-l-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             autoFocus
           />
-          <button
+          <button 
+          title='d'
             type="submit"
             className="p-2 rounded-r-md bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 transition-colors"
             disabled={!userInput.trim() || !!errorMsg}

@@ -1,3 +1,4 @@
+
 import axios, { AxiosError } from 'axios';
 import { Node, Edge } from 'reactflow';
 import Cookies from 'js-cookie';
@@ -6,14 +7,12 @@ import Cookies from 'js-cookie';
 const TOKEN_COOKIE = 'leadflow_token';
 
 // Configuration de l'API
-// Avec Vite, les variables d'environnement sont accessibles via import.meta.env
-// et doivent être préfixées par VITE_
 const API_URL = 'http://localhost:8000/api';
 
 // Configuration d'Axios avec timeout et retry
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 30000, // 30 secondes de timeout
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -23,21 +22,18 @@ const apiClient = axios.create({
 // Intercepteur pour les requêtes
 apiClient.interceptors.request.use(
   (config) => {
-    // Ajouter le token d'authentification depuis les cookies
     const token = Cookies.get(TOKEN_COOKIE);
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
       console.log(`🔒 Token d'authentification ajouté pour ${config.method?.toUpperCase()} ${config.url}`);
     } else {
       console.warn(`⚠️ Aucun token d'authentification trouvé pour ${config.method?.toUpperCase()} ${config.url}`);
-      // Vérifier si l'utilisateur est sur une page qui nécessite l'authentification
       if (window.location.pathname.includes('/dashboard') || 
           window.location.pathname.includes('/editor') ||
           window.location.pathname.includes('/settings')) {
         console.error('❌ Tentative d\'accès à une ressource protégée sans authentification');
       }
     }
-    
     console.log(`🔄 Requête API: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
@@ -55,16 +51,13 @@ apiClient.interceptors.response.use(
   },
   async (error: AxiosError) => {
     if (error.response) {
-      // La requête a été faite et le serveur a répondu avec un code d'état en dehors de la plage 2xx
       const errorDetail = error.response.data && typeof error.response.data === 'object' && 'detail' in (error.response.data as any)
         ? (error.response.data as any).detail
         : JSON.stringify(error.response.data);
       console.error(`❌ Erreur API ${error.response.status}: ${errorDetail}`);
     } else if (error.request) {
-      // La requête a été faite mais aucune réponse n'a été reçue
       console.error('❌ Pas de réponse du serveur. Vérifiez que le backend est en cours d\'exécution.');
     } else {
-      // Une erreur s'est produite lors de la configuration de la requête
       console.error('❌ Erreur de configuration de la requête:', error.message);
     }
     return Promise.reject(error);
@@ -109,11 +102,9 @@ const logError = (message: string, error: any) => {
 
 // Service API pour les assistants
 const AssistantService = {
-  // Récupérer tous les assistants
   async getAll(): Promise<Assistant[]> {
     try {
       console.log('🔍 Récupération de tous les assistants...');
-      // Utiliser apiClient pour bénéficier de l'intercepteur d'authentification
       const response = await apiClient.get('/assistants/');
       console.log('Assistants récupérés avec succès:', response.data);
       return response.data;
@@ -123,7 +114,6 @@ const AssistantService = {
     }
   },
 
-  // Récupérer un assistant par son ID
   async getById(id: string): Promise<Assistant> {
     try {
       console.log(`🔍 Récupération de l'assistant ${id}...`);
@@ -136,7 +126,6 @@ const AssistantService = {
     }
   },
 
-  // Créer un nouvel assistant
   async create(assistant: Assistant): Promise<Assistant> {
     try {
       console.log('📝 Création d\'un nouvel assistant...');
@@ -149,7 +138,6 @@ const AssistantService = {
     }
   },
 
-  // Mettre à jour un assistant existant
   async update(id: string, assistant: Partial<Assistant>): Promise<Assistant> {
     try {
       console.log(`📝 Mise à jour de l'assistant ${id}...`);
@@ -162,7 +150,6 @@ const AssistantService = {
     }
   },
 
-  // Supprimer un assistant
   async delete(id: string): Promise<void> {
     try {
       console.log(`🚮 Suppression de l'assistant ${id}...`);
@@ -174,24 +161,16 @@ const AssistantService = {
     }
   },
 
-  // Sauvegarder le flowchart d'un assistant (nodes et edges)
   async saveFlowchart(id: string, nodes: Node[], edges: Edge[]): Promise<Assistant> {
     try {
       console.log(`💾 Sauvegarde du flowchart de l'assistant ${id}...`);
-      
-      // Calculer la taille approximative des données
       const data = { nodes, edges, updated_at: new Date().toISOString() };
       const dataSize = JSON.stringify(data).length;
       console.log(`Taille des données: ${(dataSize / 1024).toFixed(2)} KB`);
-      
-      // Si les données sont volumineuses, afficher un avertissement
-      if (dataSize > 1024 * 1024) { // Plus de 1MB
+      if (dataSize > 1024 * 1024) {
         console.log('⚠️ Données volumineuses, la requête peut prendre plus de temps');
       }
-      
-      // Utiliser apiClient avec l'intercepteur d'authentification
       const response = await apiClient.put(`/assistants/${id}`, data);
-      
       console.log(`✅ Flowchart de l'assistant ${id} sauvegardé avec succès`);
       return response.data;
     } catch (error: any) {
@@ -200,19 +179,13 @@ const AssistantService = {
     }
   },
 
-  // Importer un assistant depuis un fichier JSON
   async importFromJson(jsonData: any): Promise<Assistant> {
     try {
       console.log('📥 Importation d\'un assistant depuis JSON...');
-      
-      // Vérifier que le JSON contient les données nécessaires
       if (!jsonData.name || !jsonData.nodes || !jsonData.edges) {
         throw new Error('Le fichier JSON ne contient pas les données nécessaires (name, nodes, edges)');
       }
-      
-      // Créer l'assistant avec apiClient
       const response = await apiClient.post('/assistants/', jsonData);
-      
       console.log('✅ Assistant importé avec succès:', response.data.id);
       return response.data;
     } catch (error: any) {
@@ -221,7 +194,6 @@ const AssistantService = {
     }
   },
 
-  // Publier ou dépublier un assistant
   async publishAssistant(id: string, isPublished: boolean): Promise<Assistant> {
     try {
       console.log(`${isPublished ? '💬 Publication' : '🔒 Dépublication'} de l'assistant ${id}...`);
@@ -234,7 +206,6 @@ const AssistantService = {
     }
   },
 
-  // Obtenir le script d'intégration pour un assistant publié
   async getEmbedScript(id: string): Promise<EmbedScriptResponse> {
     try {
       console.log(`💻 Génération du script d'intégration pour l'assistant ${id}...`);
@@ -245,7 +216,31 @@ const AssistantService = {
       logError(`Erreur lors de la génération du script d'intégration pour l'assistant ${id}`, error);
       throw error;
     }
+  },
+
+  async getPreviewFlow(assistantId: string): Promise<{ nodes: Node[]; edges: Edge[] }> {
+    try {
+      console.log(`🔍 Récupération du flow pour l'assistant ${assistantId} via /preview...`);
+      const response = await apiClient.get(`/preview/${assistantId}/flow`);
+      console.log(`✅ Flow récupéré avec succès pour l'assistant ${assistantId}`);
+      return response.data;
+    } catch (error: any) {
+      logError(`Erreur lors de la récupération du flow pour l'assistant ${assistantId}`, error);
+      throw error;
+    }
+  },
+
+  async getAssistantFlow(publicId: string): Promise<{ nodes: Node[]; edges: Edge[] }> {
+    try {
+      console.log(`🔍 Récupération du flow pour le public_id ${publicId} via /chat...`);
+      const response = await apiClient.get(`/chat/${publicId}/flow`);
+      console.log(`✅ Flow récupéré avec succès pour le public_id ${publicId}`);
+      return response.data;
+    } catch (error: any) {
+      logError(`Erreur lors de la récupération du flow pour le public_id ${publicId}`, error);
+      throw error;
+    }
   }
 };
 
-export default AssistantService;
+export default AssistantService;  

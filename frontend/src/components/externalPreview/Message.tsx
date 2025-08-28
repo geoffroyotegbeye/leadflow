@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
-import { ChatMessage } from './types';
-import InlineInputField from './InlineInputField';
+import { ChatMessage } from '../../types/types';
+import InlineInputField from '../../components/preview/InlineMultiFieldForm';
 
 interface MessageProps {
   message: ChatMessage;

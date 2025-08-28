@@ -436,7 +436,8 @@ async def publish_assistant(assistant_id: str, publish_data: AssistantPublish, r
             logger.info(f"Identifiant public généré: {public_id}")
             
             # Générer et stocker l'URL public et le script d'intégration
-            base_url = str(request.base_url).rstrip('/')
+            base_url = "http://localhost:5173"
+        
             public_url = f"{base_url}/chat/{public_id}"
             logger.info(f"URL publique générée: {public_url}")
             

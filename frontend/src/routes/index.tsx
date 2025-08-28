@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes as RouterRoutes, Route, Navigate } from 'react-router-dom';
+import { Routes as RouterRoutes, Route, Navigate, UNSAFE_RemixErrorBoundary } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import DashboardLayout from '../layouts/DashboardLayout';
 import NotFoundPage from '../pages/NotFoundPage';
@@ -142,9 +142,12 @@ const Routes: React.FC = () => {
         </ProtectedRoute>
       } />
       {/* je met en place cette route pour voir et tester mon travail */}
-      <Route path="/preview/:assistantId" element={<ExternalChatPreview 
-      onOpen={true}
-       />} />
+     <Route path="/chat/:publicId" element={
+        
+          <ExternalChatPreview />
+       
+      } />
+     
       {/* Catch-all route pour 404 */}
       <Route path="*" element={<NotFoundPage />} />
     </RouterRoutes>
