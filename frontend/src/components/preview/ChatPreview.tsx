@@ -833,26 +833,6 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Affichage du formulaire multi-champs si le node courant est de type form */}
-      {(() => {
-        const currentNode = flowData.nodes.find(n => n.id === currentNodeId);
-        if (currentNode && currentNode.data && currentNode.data.elements) {
-          const formElement = currentNode.data.elements.find((el: any) => el.type === 'form');
-          if (formElement) {
-            return (
-              <InlineMultiFieldFormMessage
-                element={formElement}
-                setMessages={setMessages}
-                currentNodeId={currentNodeId}
-                setCurrentNodeId={setCurrentNodeId}
-                flowData={flowData}
-                processNodeElements={processNodeElements}
-              />
-            );
-          }
-        }
-        return null;
-      })()}
 
       {/* Affichage dynamique du champ d'entrée selon l'élément attendu */}
       {(() => {
