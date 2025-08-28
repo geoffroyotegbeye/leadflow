@@ -4,7 +4,6 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   CheckCircleIcon,
   ClockIcon,
   XCircleIcon,
@@ -21,6 +20,24 @@ const Spinner: React.FC<SpinnerProps> = ({ size = "8" }) => (
     <div className={`animate-spin rounded-full h-${size} w-${size} border-t-2 border-b-2 border-blue-500`}></div>
   </div>
 );
+
+// Composant barre de progression
+interface ProgressBarProps {
+  percentage: number;
+  className?: string;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, className = "" }) => {
+  const clampedPercentage = Math.min(100, Math.max(0, percentage));
+  return (
+    <div className={`w-24 bg-gray-200 dark:bg-gray-600 rounded-full h-2.5 ${className}`}>
+      <div 
+        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+        style={{ width: `${clampedPercentage}%` }}
+      />
+    </div>
+  );
+};
 
 interface Assistant {
   id: string;
@@ -374,12 +391,7 @@ const LeadsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           <div className="flex items-center">
-                            <div className="w-24 bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
-                              <div 
-                                className="bg-blue-600 h-2.5 rounded-full" 
-                                style={{ width: `${session.completion_percentage}%` }}
-                              ></div>
-                            </div>
+                            <ProgressBar percentage={session.completion_percentage} />
                             <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                               {Math.round(session.completion_percentage)}%
                             </span>
@@ -387,10 +399,12 @@ const LeadsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleViewSession(session);
                             }}
+                            title="Voir les détails de la session"
                             className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                           >
                             <EyeIcon className="h-5 w-5" />
@@ -521,12 +535,7 @@ const LeadsPage: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Taux de complétion</h3>
                   <div className="mt-1 flex items-center">
-                    <div className="w-24 bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
-                      <div 
-                        className="bg-blue-600 h-2.5 rounded-full" 
-                        style={{ width: `${selectedSession.completion_percentage}%` }}
-                      ></div>
-                    </div>
+                    <ProgressBar percentage={selectedSession.completion_percentage} />
                     <span className="ml-2 text-sm text-gray-900 dark:text-white">
                       {Math.round(selectedSession.completion_percentage)}%
                     </span>

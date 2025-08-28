@@ -15,11 +15,7 @@ import {
   PlusIcon,
   SparklesIcon,
   ArrowDownTrayIcon,
-  DocumentDuplicateIcon,
-  TrashIcon,
-  PencilSquareIcon,
-  EyeIcon,
-  ShareIcon
+
 } from '@heroicons/react/24/outline';
 import AssistantService, { Assistant } from '../services/api';
 
@@ -120,7 +116,7 @@ const DashboardPage: React.FC = () => {
       
       // Mettre à jour l'état local avec le bon typage
       setAssistants(prev => [...prev, {
-        id: createdAssistant.id || '',
+        id: createdAssistant.id!,
         name: createdAssistant.name,
         description: createdAssistant.description || ''
       }]);
@@ -197,7 +193,7 @@ const DashboardPage: React.FC = () => {
       
       // Mettre à jour la liste des assistants avec le bon typage
       setAssistants(prev => [...prev, {
-        id: createdAssistant.id || '',
+        id: createdAssistant.id!,
         name: createdAssistant.name,
         description: createdAssistant.description || ''
       }]);
@@ -296,7 +292,11 @@ const DashboardPage: React.FC = () => {
           const importedAssistant = await AssistantService.importFromJson(jsonData);
           
           // Mettre à jour l'état local
-          setAssistants(prev => [...prev, importedAssistant]);
+          setAssistants(prev => [...prev, {
+            id: importedAssistant.id!,
+            name: importedAssistant.name,
+            description: importedAssistant.description || ''
+          }]);
           
           // Réinitialiser l'input file
           if (event.target) event.target.value = '';
@@ -382,6 +382,7 @@ const DashboardPage: React.FC = () => {
             onChange={handleFileChange}
             accept=".json"
             className="hidden"
+            aria-label="Importer un fichier JSON d'assistant"
           />
           
           {/* Bouton de création */}

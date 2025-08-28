@@ -226,7 +226,14 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   
   // Traiter les éléments d'un nœud
   const processNodeElements = useCallback((node: any) => {
-    if (!node.data?.elements) return;
+    console.log('Processing node:', node);
+    console.log('Node data:', node.data);
+    console.log('Node elements:', node.data?.elements);
+
+    if (!node.data?.elements) {
+      console.warn('No elements found in node:', node);
+      return;
+    }
 
     // Vérifier si c'est un nœud de type END
     const isEndNode = node.data.type === NodeType.END || node.data.type === 'end';
@@ -328,19 +335,30 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   // Initialiser la conversation avec le nœud de départ
   const initializeChat = useCallback(() => {
     if (!flowData.nodes.length || !assistantId) {
-      console.log("%c[DEBUG] Impossible d'initialiser le chat: données manquantes", 'background: #ff0000; color: white');
-      console.log('%c[DEBUG] flowData.nodes.length:', 'background: #ff0000; color: white', flowData.nodes.length);
-      console.log('%c[DEBUG] assistantId:', 'background: #ff0000; color: white', assistantId);
+      console.log("Données manquantes pour initialiser le chat");
       return;
     }
-    // Trouver le nœud de départ
-    const startNode = flowData.nodes.find(node => node.data?.type === 'start');
-    console.log('%c[DEBUG] Nœud de départ trouvé:', 'background: #0000ff; color: white', startNode);
+    
+    // Améliorer la détection du nœud de départ
+    const startNode = flowData.nodes.find(node => {
+      // Vérifier plusieurs formats possibles
+      const nodeType = node.data?.type || node.type;
+      return nodeType === 'start' || 
+             nodeType === 'startNode' ||
+             // Nœud sans connexion entrante
+             !flowData.edges.some(edge => edge.target === node.id);
+    });
+    
     if (startNode) {
       setCurrentNodeId(startNode.id);
       processNodeElements(startNode);
     } else {
-      console.error("%c[DEBUG] Aucun nœud de départ trouvé dans le flowData", 'background: #ff0000; color: white; font-weight: bold');
+      console.error("Aucun nœud de départ trouvé");
+      // Utiliser le premier nœud comme fallback
+      if (flowData.nodes.length > 0) {
+        setCurrentNodeId(flowData.nodes[0].id);
+        processNodeElements(flowData.nodes[0]);
+      }
     }
   }, [flowData, processNodeElements, assistantId]);
 
@@ -359,32 +377,21 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
   // Charger le flowchart depuis le store
   useEffect(() => {
     if (assistantId) {
-      // Si les données sont déjà dans le store, les utiliser directement
-      if (storeNodes.length > 0 || storeEdges.length > 0) {
-        setFlowData({
-          nodes: storeNodes,
-          edges: storeEdges
-        });
-        setIsLoading(false);
-      } else {
-        // Sinon, charger depuis l'API
-        setIsLoading(true);
-
-        AssistantService.getById(assistantId)
-          .then(assistant => {
-            setFlowData({
-              nodes: assistant.nodes || [],
-              edges: assistant.edges || []
-            });
-            setIsLoading(false);
-          })
-          .catch(error => {
-            console.error('Erreur lors du chargement du flowchart:', error);
-            setIsLoading(false);
+      setIsLoading(true);
+      AssistantService.getById(assistantId)
+        .then(assistant => {
+          setFlowData({
+            nodes: assistant.nodes || [],
+            edges: assistant.edges || []
           });
-      }
+          setIsLoading(false);
+        })
+        .catch(error => {
+          console.error('Erreur lors du chargement du flowchart:', error);
+          setIsLoading(false);
+        });
     }
-  }, [assistantId, storeNodes, storeEdges]);
+  }, [assistantId]);
 
   // Charger les messages sauvegardés
   useEffect(() => {
@@ -471,9 +478,12 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
     );
 
     if (lastBotMessage && lastBotMessage.elementData) {
-      // Trouver l'option qui correspond au texte saisi par l'utilisateur
-      const matchedOption = lastBotMessage.elementData.options.find(
-        (opt: any) => opt.text.toLowerCase() === userInput.toLowerCase()
+      // Améliorer la gestion des options
+      const matchedOption = lastBotMessage.elementData.options?.find(
+        (opt: any) => {
+          const optionText = typeof opt === 'string' ? opt : opt.text;
+          return optionText.toLowerCase() === userInput.toLowerCase();
+        }
       );
 
       if (matchedOption && matchedOption.targetNodeId) {
@@ -526,12 +536,13 @@ const ChatPreview: React.FC<ChatPreviewProps> = ({ isOpen, onClose, assistantId 
 
     setMessages(prev => [...prev, userMessage]);
 
-    // Trouver l'option correspondante dans les données de l'élément
-    const matchedOption = elementData?.options?.find(
-      (opt: any) => opt.text === optionText
-    );
+    // Améliorer la recherche d'option
+    const matchedOption = elementData?.options?.find((opt: any) => {
+      const optionText = typeof opt === 'string' ? opt : opt.text;
+      return optionText === optionText;
+    });
 
-    if (matchedOption && matchedOption.targetNodeId) {
+    if (matchedOption?.targetNodeId) {
       // Trouver le nœud cible
       const targetNode = flowData.nodes.find(node => node.id === matchedOption.targetNodeId);
       if (targetNode) {

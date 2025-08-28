@@ -139,10 +139,10 @@ const LandingPage = () => {
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
-              <Link to="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
+              <Link to="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200">
                 Fonctionnalités
               </Link>
-              <Link to="/documentation" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
+              <Link to="/documentation" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200">
                 Documentation
               </Link>
             </div>
@@ -562,10 +562,10 @@ const LandingPage = () => {
               </Link>
             </div>
             <div className="flex space-x-6">
-              <Link to="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
+              <Link to="/features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200">
                 Fonctionnalités
               </Link>
-              <Link to="/documentation" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:text-white transition-colors duration-200">
+              <Link to="/documentation" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-200">
                 Documentation
               </Link>
               

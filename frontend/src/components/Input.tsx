@@ -44,12 +44,12 @@ const Input: React.FC<InputProps> = ({ label, icon, type, ...props }) => {
             type="button"
             tabIndex={-1}
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 focus:outline-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none transition-colors duration-200 p-1 rounded"
           >
             {showPassword ? (
-              <EyeSlashIcon className="w-5 h-5" />
+              <EyeSlashIcon className="w-5 h-5 " />
             ) : (
-              <EyeIcon className="w-5 h-5" />
+              <EyeIcon className="w-5 h-5 " />
             )}
           </button>
         )}

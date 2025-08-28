@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeIcon, LockClosedIcon, BuildingOfficeIcon, UserIcon } from '@heroicons/react/24/outline';
 import AnimatedBackground from '../components/AnimatedBackground';
@@ -27,7 +27,7 @@ const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 const { showToast } = useToast();
 const { register } = useAuth();
-const navigate = useNavigate();
+
 
 const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,9 +77,9 @@ const handleSubmit = async (e: React.FormEvent) => {
           transition={{ duration: 0.5 }}
           className="absolute top-8 left-8"
         >
-          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
             leadflow
-          </span>
+          </Link>
         </motion.div>
 
         <div className="max-w-md w-full">

@@ -9,7 +9,7 @@ import {
   UserGroupIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowRightOnRectangleIcon,
+  ArrowRightStartOnRectangleIcon,
   UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { useSidebar } from '../context/SidebarContext';
@@ -29,9 +29,13 @@ const Sidebar: React.FC = () => {
   const { collapsed, toggleSidebar } = useSidebar();
   const { user, logout, isAuthenticated } = useAuth();
 
-  // Nouvelle logique d'activation : path prefix
+  // Logique d'activation : correspondance exacte ou sous-pages spécifiques
   const isMenuActive = (menuPath: string) => {
-    // Toujours activer si location.pathname commence par menuPath
+    if (menuPath === '/dashboard') {
+      // Pour le dashboard, activer seulement si c'est exactement /dashboard
+      return location.pathname === '/dashboard';
+    }
+    // Pour les autres, activer si le path commence par le menuPath
     return location.pathname === menuPath || location.pathname.startsWith(menuPath + '/');
   };
 
@@ -42,13 +46,15 @@ const Sidebar: React.FC = () => {
       {/* Logo and Toggle Button */}
       <div className={`p-6 flex ${collapsed ? 'justify-center' : 'justify-between'} items-center`}>
         {!collapsed && (
-          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
             leadflow
-          </span>
+          </Link>
         )}
         <Tooltip content={collapsed ? "Déplier le menu" : "Replier le menu"}>
           <button 
+            type="button"
             onClick={toggleSidebar}
+            title={collapsed ? "Déplier le menu" : "Replier le menu"}
             className="p-2 rounded-lg bg-gray-100/50 dark:bg-gray-800/30 text-gray-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/30 transition-colors"
           >
             {collapsed ? <ChevronRightIcon className="h-5 w-5" /> : <ChevronLeftIcon className="h-5 w-5" />}
@@ -133,10 +139,12 @@ const Sidebar: React.FC = () => {
               </Tooltip>
               <Tooltip content="Déconnexion" position="right">
                 <button 
+                  type="button"
                   onClick={logout}
+                  title="Déconnexion"
                   className="p-2 rounded-full bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-800/30 transition-colors"
                 >
-                  <ArrowRightOnRectangleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  <ArrowRightStartOnRectangleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </button>
               </Tooltip>
             </div>
@@ -154,10 +162,11 @@ const Sidebar: React.FC = () => {
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={logout}
                 className="w-full flex items-center justify-center space-x-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-800/20 transition-colors"
               >
-                <ArrowRightOnRectangleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <ArrowRightStartOnRectangleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
                 <span className="text-sm font-medium text-red-600 dark:text-red-400">Déconnexion</span>
               </button>
             </div>

@@ -44,9 +44,9 @@ const LoginPage: React.FC = () => {
           transition={{ duration: 0.5 }}
           className="absolute top-8 left-8"
         >
-          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
             leadflow
-          </span>
+          </Link>
         </motion.div>
 
         <div className="max-w-md w-full">
